@@ -248,6 +248,44 @@ class PtraceInterface(DebuggingInterface):
         if result < 0:
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
+        
+    def counting_cont(self:PtraceInterface) -> int:
+        """Fundamentally a copy paste of cont, except cont is not done"""
+        # Forward signals to the threads
+        if self._internal_debugger.resume_context.threads_with_signals_to_forward:
+            self.forward_signal()
+
+        # Enable all breakpoints if they were disabled for a single step
+        changed = []
+
+        for bp in self._internal_debugger.breakpoints.values():
+            bp._disabled_for_step = False
+            if bp._changed:
+                changed.append(bp)
+                bp._changed = False
+
+        for bp in changed:
+            if bp.enabled:
+                self.set_breakpoint(bp, insert=False)
+            else:
+                self.unset_breakpoint(bp, delete=False)
+
+        for handler in self._internal_debugger.handled_syscalls.values():
+            if handler.enabled or handler.on_enter_pprint or handler.on_exit_pprint:
+                self._global_state.handle_syscall_enabled = True
+                break
+        else:
+            self._global_state.handle_syscall_enabled = False
+
+        # Stepping finish does exactly what we need: repeated steps until either a bp is hit or the program ends
+        result = self.lib_trace.stepping_finish(
+            self._global_state,
+            self.process_id,
+        )
+        if result < 0:
+            errno_val = self.ffi.errno
+            raise OSError(errno_val, errno.errorcode[errno_val])
+        else: return result
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
         """Executes a single instruction of the process.

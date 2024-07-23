@@ -592,6 +592,7 @@ int stepping_finish(struct global_state *state, int tid)
 
     uint64_t previous_ip, current_ip;
     uint64_t opcode_window, first_opcode_byte;
+    int count=0;
 
     // We need to keep track of the nested calls
     int nested_call_counter = 1;
@@ -619,6 +620,9 @@ int stepping_finish(struct global_state *state, int tid)
         if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte))
             goto cleanup;
 
+        //the instruction pointer advanced, which means we executed a new instruction
+        count++;
+        
         // If we hit a call instruction, we increment the counter
         if (IS_CALL_INSTRUCTION((uint8_t*) &opcode_window))
             nested_call_counter++;
@@ -646,5 +650,5 @@ cleanup:
         b = b->next;
     }
 
-    return 0;
+    return count;
 }

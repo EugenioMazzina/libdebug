@@ -74,6 +74,12 @@ class Debugger:
         """Continues the process."""
         self._internal_debugger.cont()
 
+    def trace(self:Debugger) -> None:
+        """Enables the tracing of instructions executed.
+        This slows the execution.
+        """
+        self._internal_debugger.trace()
+
     def interrupt(self: Debugger) -> None:
         """Interrupts the process."""
         self._internal_debugger.interrupt()

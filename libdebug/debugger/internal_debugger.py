@@ -88,6 +88,9 @@ class InternalDebugger:
     auto_interrupt_on_command: bool
     """A flag that indicates if the debugger should automatically interrupt the debugged process when a command is issued."""
 
+    trace_on: bool
+    """A flag that indicates if tracing of instructions should be performed"""
+
     breakpoints: dict[int, Breakpoint]
     """A dictionary of all the breakpoints set on the process.
     Key: the address of the breakpoint."""
@@ -145,6 +148,10 @@ class InternalDebugger:
     _is_running: bool
     """The overall state of the debugged process. True if the process is running, False otherwise."""
 
+    trace_counter: int
+    """Keeps track of the number of instructions executed while the program was being traced"""
+    #This can be moved somewhere else, I didn't know where to properly put this information
+
     def __init__(self: InternalDebugger) -> None:
         """Initialize the context."""
         # These must be reinitialized on every call to "debugger"
@@ -153,6 +160,7 @@ class InternalDebugger:
         self.argv = []
         self.env = {}
         self.escape_antidebug = False
+        self.trace_on = False
         self.breakpoints = {}
         self.handled_syscalls = {}
         self.caught_signals = {}
@@ -168,6 +176,7 @@ class InternalDebugger:
         self.resume_context = ResumeContext()
         self.__polling_thread_command_queue = Queue()
         self.__polling_thread_response_queue = Queue()
+        self.trace_counter=0
 
     def clear(self: InternalDebugger) -> None:
         """Reinitializes the context, so it is ready for a new run."""
@@ -184,7 +193,9 @@ class InternalDebugger:
         self.threads.clear()
         self.instanced = False
         self._is_running = False
+        self.trace_on = False
         self.resume_context.clear()
+        self.trace_counter=0
 
     def start_up(self: InternalDebugger) -> None:
         """Starts up the context."""
@@ -321,6 +332,15 @@ class InternalDebugger:
         self._join_and_check_status()
 
         self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
+
+    def trace(self: InternalDebugger) -> None:
+        """Enables the tracing of instructions executed or returns the counter"""
+        #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
+        if(self.trace_on):
+            print("{} instructions have been executed since tracing was enabled", self.trace_counter)
+        else:
+            self.trace_on = True
+            print("tracing enabled")
 
     @background_alias(_background_invalid_call)
     def interrupt(self: InternalDebugger) -> None:
@@ -1212,7 +1232,11 @@ class InternalDebugger:
             liblog.debugger("Continuing process %d.", self.process_id)
 
         self.set_running()
-        self.debugging_interface.cont()
+        if(self.trace_on):
+            increase=self.debugging_interface.counting_cont()
+            self.trace_counter+=increase
+        else:
+            self.debugging_interface.cont()
 
     def __threaded_wait(self: InternalDebugger) -> None:
         if self.argv:
