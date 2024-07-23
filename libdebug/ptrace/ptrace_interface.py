@@ -285,7 +285,8 @@ class PtraceInterface(DebuggingInterface):
         if result < 0:
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
-        else: return result
+        else: 
+            return result
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
         """Executes a single instruction of the process.
