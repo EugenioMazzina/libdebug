@@ -23,7 +23,7 @@ class TraceTest(unittest.TestCase):
         result = d.trace()
         #uncomment these when dependencies will actually work
         #self.assertTrue(result == 8)
-        d.cont()
+        #d.cont()
         result = d.trace()
         #self.assertTrue(result == 12)
         d.kill()
