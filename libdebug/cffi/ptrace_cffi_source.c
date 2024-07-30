@@ -572,6 +572,57 @@ void free_breakpoints(struct global_state *state)
     state->b_HEAD = NULL;
 }
 
+int stepping_cont(struct global_state *state, int tid)
+{
+    int status = prepare_for_run(state, tid);
+
+    status=status;
+
+    struct thread *stepping_thread = state->t_HEAD;
+    while (stepping_thread != NULL) {
+        if (stepping_thread->tid == tid) {
+            break;
+        }
+
+        stepping_thread = stepping_thread->next;
+    }
+
+    if (!stepping_thread) {
+        perror("Thread not found");
+        return -1;
+    }
+
+    uint64_t previous_ip, current_ip;
+    uint64_t opcode_window, first_opcode_byte;
+    int count=0;
+
+    do{
+        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
+
+        previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+
+        // update the registers
+        ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
+        current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+
+        // Get value at current instruction pointer
+        opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+        first_opcode_byte = opcode_window & 0xFF;
+
+        // if the instruction pointer didn't change, we return
+        // because we hit a hardware breakpoint
+        // we do the same if we hit a software breakpoint
+        if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte))
+            break;
+
+        // We have not hit a breakpoint, hence the counter increased
+        count++;
+    } while(1==1);
+
+    return count;
+}
+
 int stepping_finish(struct global_state *state, int tid)
 {
     int status = prepare_for_run(state, tid);
@@ -592,7 +643,6 @@ int stepping_finish(struct global_state *state, int tid)
 
     uint64_t previous_ip, current_ip;
     uint64_t opcode_window, first_opcode_byte;
-    int count=0;
 
     // We need to keep track of the nested calls
     int nested_call_counter = 1;
@@ -619,9 +669,6 @@ int stepping_finish(struct global_state *state, int tid)
         // we do the same if we hit a software breakpoint
         if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte))
             goto cleanup;
-
-        //the instruction pointer advanced, which means we executed a new instruction
-        count++;
         
         // If we hit a call instruction, we increment the counter
         if (IS_CALL_INSTRUCTION((uint8_t*) &opcode_window))
@@ -650,5 +697,5 @@ cleanup:
         b = b->next;
     }
 
-    return count;
+    return status;
 }

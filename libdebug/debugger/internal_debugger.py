@@ -278,6 +278,12 @@ class InternalDebugger:
 
         self._join_and_check_status()
 
+    def getMem(self: InternalDebugger) -> object:
+        file="/proc/"+str(self.process_id)+"/mem"
+        with open(file,"r") as f:
+            a=f.read()
+            return a
+
     def detach(self: InternalDebugger) -> None:
         """Detaches from the process."""
         if not self.instanced:
@@ -335,9 +341,10 @@ class InternalDebugger:
 
     def trace(self: InternalDebugger) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
+        #print("entering trace")
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
         if(self.trace_on):
-            print("{} instructions have been executed since tracing was enabled", self.trace_counter)
+            print(self.trace_counter," instructions have been executed since tracing was enabled")
         else:
             self.trace_on = True
             print("tracing enabled")
@@ -1234,7 +1241,9 @@ class InternalDebugger:
         self.set_running()
         if(self.trace_on):
             increase=self.debugging_interface.counting_cont()
+            #print("increase is ",increase)
             self.trace_counter+=increase
+            #self.set_stopped()
         else:
             self.debugging_interface.cont()
 

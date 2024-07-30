@@ -138,6 +138,7 @@ ffibuilder.cdef(
 
     int cont_all_and_set_bps(struct global_state *state, int pid);
 
+    int stepping_cont(struct global_state *state, int tid);
     int stepping_finish(struct global_state *state, int tid);
 
     struct thread_status *wait_all_and_update_regs(struct global_state *state, int pid);
@@ -155,7 +156,7 @@ ffibuilder.cdef(
 """
 )
 
-with open("libdebug/cffi/ptrace_cffi_source.c") as f:
+with open("ptrace_cffi_source.c") as f:
     ffibuilder.set_source(
         "libdebug.cffi._ptrace_cffi",
         breakpoint_define + finish_define + f.read(),

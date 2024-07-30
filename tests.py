@@ -1,17 +1,20 @@
 from libdebug import debugger
 from pwn import process
 
-r = process("test/binaries/attach_test")
-
-d = debugger()
-d.attach(r.pid)
-bp = d.breakpoint("printName", hardware=True)
-print(hex(d.regs.rsi))
-#bpp=d.breakpoint(0x00101252, hardware=True)
+d=debugger("test/binaries/trace_test")
+d.run()
+bp=d.breakpoint("base_test")
+bbp=d.breakpoint("base_test_2")
+#bp = d.breakpoint(0x4011F4)
+#bbp= d.breakpoint(0x401296)
 d.cont()
-
-r.recvuntil(b"name:")
-r.sendline(b"Io_no")
-
+#a=d.getMem()
+#print(a)
+#print(d.regs.rip)
+#d.trace()
+#print(d.regs.rip)
 d.cont()
+#d.trace()
+#print(d.regs.rip)
+#d.cont()
 d.kill()

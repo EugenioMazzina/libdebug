@@ -36,6 +36,7 @@ from scripts.vmwhere1_test import Vmwhere1
 from scripts.waiting_test import WaitingNcuts, WaitingTest
 from scripts.watchpoint_alias_test import WatchpointAliasTest
 from scripts.watchpoint_test import WatchpointTest
+from scripts.trace_test import TraceTest
 
 
 def fast_suite():
@@ -180,6 +181,7 @@ def fast_suite():
     suite.addTest(AliasTest("test_finish_alias"))
     suite.addTest(AliasTest("test_waiting_alias"))
     suite.addTest(AliasTest("test_interrupt_alias"))
+    suite.addTest(TraceTest("test_trace_basic"))
     return suite
 
 

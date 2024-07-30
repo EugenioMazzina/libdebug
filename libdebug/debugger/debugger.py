@@ -80,6 +80,9 @@ class Debugger:
         """
         self._internal_debugger.trace()
 
+    def getMem(self:Debugger) -> object:
+        return self._internal_debugger.getMem()
+
     def interrupt(self: Debugger) -> None:
         """Interrupts the process."""
         self._internal_debugger.interrupt()

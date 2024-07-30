@@ -277,15 +277,14 @@ class PtraceInterface(DebuggingInterface):
         else:
             self._global_state.handle_syscall_enabled = False
 
-        # Stepping finish does exactly what we need: repeated steps until either a bp is hit or the program ends
-        result = self.lib_trace.stepping_finish(
+        result = self.lib_trace.stepping_cont(
             self._global_state,
             self.process_id,
         )
         if result < 0:
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
-        else: 
+        else:
             return result
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
