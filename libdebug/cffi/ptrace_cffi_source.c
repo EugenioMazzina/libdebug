@@ -599,6 +599,10 @@ int stepping_cont(struct global_state *state, int tid)
     do{
         if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
 
+        waitpid(tid, &status, 0);
+
+        printf("reached stepping cont");
+
         previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
         // update the registers
