@@ -156,7 +156,7 @@ ffibuilder.cdef(
 """
 )
 
-with open("ptrace_cffi_source.c") as f:
+with open("libdebug/cffi/ptrace_cffi_source.c") as f:
     ffibuilder.set_source(
         "libdebug.cffi._ptrace_cffi",
         breakpoint_define + finish_define + f.read(),
