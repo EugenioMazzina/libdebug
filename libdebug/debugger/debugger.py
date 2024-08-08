@@ -80,9 +80,6 @@ class Debugger:
         """
         self._internal_debugger.trace()
 
-    def getMem(self:Debugger) -> object:
-        return self._internal_debugger.getMem()
-
     def interrupt(self: Debugger) -> None:
         """Interrupts the process."""
         self._internal_debugger.interrupt()
@@ -90,6 +87,9 @@ class Debugger:
     def wait(self: Debugger) -> None:
         """Waits for the process to stop."""
         self._internal_debugger.wait()
+
+    def mem(self: Debugger) -> object:
+        return self._internal_debugger.mem()
 
     def maps(self: Debugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""

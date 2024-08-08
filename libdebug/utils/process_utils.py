@@ -27,6 +27,14 @@ def get_process_maps(process_id: int) -> list[MemoryMap]:
 
     return [MemoryMap.parse(vmap) for vmap in maps]
 
+@functools.cache
+def get_process_mem(process_id: int, map : MemoryMap) -> object:
+    with Path(f"/proc/{process_id}/mem").open() as mem_file:
+        mem_file.seek(map.start)
+        chunk = mem_file.read(map.size)
+    
+    return chunk
+
 
 @functools.cache
 def get_open_fds(process_id: int) -> list[int]:

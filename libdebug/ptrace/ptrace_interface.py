@@ -33,6 +33,7 @@ from libdebug.utils.pipe_manager import PipeManager
 from libdebug.utils.process_utils import (
     disable_self_aslr,
     get_process_maps,
+    get_process_mem,
     invalidate_process_cache,
 )
 
@@ -277,15 +278,28 @@ class PtraceInterface(DebuggingInterface):
         else:
             self._global_state.handle_syscall_enabled = False
 
-        result = self.lib_trace.stepping_cont(
-            self._global_state,
-            self.process_id,
-        )
-        if result < 0:
-            errno_val = self.ffi.errno
-            raise OSError(errno_val, errno.errorcode[errno_val])
-        else:
-            return result
+        count=0
+
+        while(True):
+            old_ip = self._global_state.t_HEAD.regs.rip
+            #singlestep does not deactivate breakpoints, should be safe
+            result=self.lib_trace.singlestep(
+                self._global_state,
+                self.process_id
+            )
+            if result<0:
+                errno_val = self.ffi.errno
+                raise OSError(errno_val, errno.errorcode[errno_val])
+            else:
+                self._internal_debugger.resume_context.is_a_step = True
+                new_ip = self._global_state.t_HEAD.regs.rip
+                #if the ip did not change, then we are stuck on a breakpoint
+                #TODO: extend too take in account sw breakpoints
+                if(old_ip == new_ip):
+                    break
+                else:
+                    count+=1
+        return count
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
         """Executes a single instruction of the process.
@@ -704,3 +718,7 @@ class PtraceInterface(DebuggingInterface):
     def maps(self: PtraceInterface) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
         return get_process_maps(self.process_id)
+    
+    def mem(self:PtraceInterface) -> object:
+        map = self.maps()[1]
+        return get_process_mem(self.process_id, map)

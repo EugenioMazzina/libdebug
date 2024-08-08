@@ -278,12 +278,6 @@ class InternalDebugger:
 
         self._join_and_check_status()
 
-    def getMem(self: InternalDebugger) -> object:
-        file="/proc/"+str(self.process_id)+"/mem"
-        with open(file,"r") as f:
-            a=f.read()
-            return a
-
     def detach(self: InternalDebugger) -> None:
         """Detaches from the process."""
         if not self.instanced:
@@ -388,6 +382,10 @@ class InternalDebugger:
         """Returns the memory maps of the process."""
         self._ensure_process_stopped()
         return self.debugging_interface.maps()
+    
+    def mem(self: InternalDebugger) -> object:
+        self._ensure_process_stopped()
+        return self.debugging_interface.mem()
 
     def print_maps(self: InternalDebugger) -> None:
         """Prints the memory maps of the process."""

@@ -574,9 +574,7 @@ void free_breakpoints(struct global_state *state)
 
 int stepping_cont(struct global_state *state, int tid)
 {
-    int status = prepare_for_run(state, tid);
-
-    status=status;
+    //prepare_for_run(state, tid);
 
     struct thread *stepping_thread = state->t_HEAD;
     while (stepping_thread != NULL) {
@@ -593,13 +591,15 @@ int stepping_cont(struct global_state *state, int tid)
     }
 
     uint64_t previous_ip, current_ip;
-    uint64_t opcode_window, first_opcode_byte;
-    int count=0;
+    uint64_t first_opcode_byte, opcode_window;
+    int count=0, status=0;
 
     do{
         if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
 
-        printf("reached stepping cont");
+        printf("reached stepping cont..");
+
+        waitpid(tid, &status, 0);
 
         previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
