@@ -597,7 +597,7 @@ int stepping_cont(struct global_state *state, int tid)
     do{
         if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
 
-        printf("reached stepping cont..");
+        printf("reached stepping cont..\n");
 
         waitpid(tid, &status, 0);
 
@@ -612,6 +612,11 @@ int stepping_cont(struct global_state *state, int tid)
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
 
+        printf(previous_ip);
+        printf("  ");
+        printf(current_ip);
+        printf("\n");
+
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
         // we do the same if we hit a software breakpoint
@@ -620,7 +625,7 @@ int stepping_cont(struct global_state *state, int tid)
 
         // We have not hit a breakpoint, hence the counter increased
         count++;
-    } while(1==1);
+    } while(count<10);
 
     return count;
 }
