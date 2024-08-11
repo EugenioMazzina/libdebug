@@ -1225,7 +1225,7 @@ int stepping_cont(struct global_state *state, int tid)
 
         // We have not hit a breakpoint, hence the counter increased
         count++;
-    } while(count<10);
+    } while(count<20);
 
     return count;
 }
