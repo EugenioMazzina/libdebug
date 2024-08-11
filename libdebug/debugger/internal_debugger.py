@@ -331,7 +331,8 @@ class InternalDebugger:
 
         self._join_and_check_status()
 
-        self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
+        if not self.trace_on:
+            self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
     def trace(self: InternalDebugger) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
@@ -1241,7 +1242,6 @@ class InternalDebugger:
             increase=self.debugging_interface.counting_cont()
             #print("increase is ",increase)
             self.trace_counter+=increase
-            #self.set_stopped()
         else:
             self.debugging_interface.cont()
 

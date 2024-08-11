@@ -614,6 +614,7 @@ static void (*_cffi_call_python_org)(struct _cffi_externpy_s *, char *);
 #include <sys/types.h>
 #include <sys/user.h>
 #include <sys/wait.h>
+#include <inttypes.h>
 
 struct ptrace_hit_bp {
     int pid;
@@ -1213,10 +1214,8 @@ int stepping_cont(struct global_state *state, int tid)
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
 
-        printf(previous_ip);
-        printf("  ");
-        printf(current_ip);
-        printf("\n");
+        printf("%" PRIu64 "  ", previous_ip);
+        printf("%" PRIu64 "\n", current_ip);
 
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint

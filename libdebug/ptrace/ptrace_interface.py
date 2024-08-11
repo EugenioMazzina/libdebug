@@ -286,6 +286,8 @@ class PtraceInterface(DebuggingInterface):
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
         else:
+            #the wait has been done internally
+            invalidate_process_cache()
             return result
 
 
