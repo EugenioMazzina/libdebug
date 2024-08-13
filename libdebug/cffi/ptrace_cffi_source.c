@@ -573,7 +573,7 @@ void free_breakpoints(struct global_state *state)
     state->b_HEAD = NULL;
 }
 
-int stepping_cont(struct global_state *state, int tid)
+int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
 {
     //prepare_for_run(state, tid);
 
@@ -623,7 +623,10 @@ int stepping_cont(struct global_state *state, int tid)
             break;
 
         // We have not hit a breakpoint, hence the counter increased
-        count++;
+        //we only increase in case we are inside the mapped code region if external is on (marked by ap_end and map_start being identical)
+        if((map_end != map_start) && current_ip < map_end && current_ip > map_start){
+            count++;
+        }
     } while(count<20);
 
     return count;

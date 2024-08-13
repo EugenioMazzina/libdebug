@@ -138,7 +138,7 @@ ffibuilder.cdef(
 
     int cont_all_and_set_bps(struct global_state *state, int pid);
 
-    int stepping_cont(struct global_state *state, int tid);
+    int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end);
     int stepping_finish(struct global_state *state, int tid);
 
     struct thread_status *wait_all_and_update_regs(struct global_state *state, int pid);

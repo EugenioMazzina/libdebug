@@ -250,7 +250,7 @@ class PtraceInterface(DebuggingInterface):
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
         
-    def counting_cont(self:PtraceInterface) -> int:
+    def counting_cont(self:PtraceInterface, external : bool) -> int:
         """Fundamentally a copy paste of cont, except cont is not done"""
         # Forward signals to the threads
         if self._internal_debugger.resume_context.threads_with_signals_to_forward:
@@ -278,9 +278,19 @@ class PtraceInterface(DebuggingInterface):
         else:
             self._global_state.handle_syscall_enabled = False
 
+        if external:
+            mapping = self.maps()[1]
+            map_start = mapping.start
+            map_end = mapping.end
+        else:
+            map_start=0
+            map_end=0
+
         result = self.lib_trace.stepping_cont(
             self._global_state,
-            self.process_id
+            self.process_id,
+            map_start,
+            map_end
         )
         if result < 0:
             errno_val = self.ffi.errno

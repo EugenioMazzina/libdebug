@@ -152,6 +152,9 @@ class InternalDebugger:
     """Keeps track of the number of instructions executed while the program was being traced"""
     #This can be moved somewhere else, I didn't know where to properly put this information
 
+    external_tracing : bool
+    """True if tracing of instructions from external libraries should be performed"""
+
     def __init__(self: InternalDebugger) -> None:
         """Initialize the context."""
         # These must be reinitialized on every call to "debugger"
@@ -177,6 +180,7 @@ class InternalDebugger:
         self.__polling_thread_command_queue = Queue()
         self.__polling_thread_response_queue = Queue()
         self.trace_counter=0
+        self.external_tracing=False
 
     def clear(self: InternalDebugger) -> None:
         """Reinitializes the context, so it is ready for a new run."""
@@ -196,6 +200,7 @@ class InternalDebugger:
         self.trace_on = False
         self.resume_context.clear()
         self.trace_counter=0
+        self.external_tracing=False
 
     def start_up(self: InternalDebugger) -> None:
         """Starts up the context."""
@@ -334,7 +339,7 @@ class InternalDebugger:
         if not self.trace_on:
             self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
-    def trace(self: InternalDebugger) -> None:
+    def trace(self: InternalDebugger, external: bool=False) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
         #print("entering trace")
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
@@ -342,6 +347,8 @@ class InternalDebugger:
             print(self.trace_counter," instructions have been executed since tracing was enabled")
         else:
             self.trace_on = True
+            if external:
+                self.external_tracing = True
             print("tracing enabled")
 
     @background_alias(_background_invalid_call)
@@ -1239,8 +1246,8 @@ class InternalDebugger:
 
         self.set_running()
         if(self.trace_on):
-            increase=self.debugging_interface.counting_cont()
-            #print("increase is ",increase)
+            increase=self.debugging_interface.counting_cont(external=self.external_tracing)
+            print("increase is ",increase)
             self.trace_counter+=increase
         else:
             self.debugging_interface.cont()
