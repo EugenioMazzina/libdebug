@@ -1214,8 +1214,10 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
 
-        printf("%" PRIu64 "  ", previous_ip);
-        printf("%" PRIu64 "\n", current_ip);
+        if(current_ip < map_end && current_ip > map_start){
+            printf("%" PRIu64 "  ", previous_ip);
+            printf("%" PRIu64 "\n", current_ip);
+        }
 
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
