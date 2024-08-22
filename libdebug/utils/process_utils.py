@@ -7,6 +7,7 @@
 import functools
 import os
 from pathlib import Path
+import re
 
 from libdebug.cffi._personality_cffi import lib as lib_personality
 from libdebug.data.memory_map import MemoryMap
@@ -29,11 +30,11 @@ def get_process_maps(process_id: int) -> list[MemoryMap]:
 
 @functools.cache
 def get_process_mem(process_id: int, map : MemoryMap) -> object:
-    with Path(f"/proc/{process_id}/mem").open() as mem_file:
+    with Path(f"/proc/{process_id}/mem").open(mode="rb") as mem_file:
         mem_file.seek(map.start)
         chunk = mem_file.read(map.size)
     
-    return chunk
+    return hexify(chunk)
 
 
 @functools.cache
@@ -61,3 +62,6 @@ def disable_self_aslr() -> None:
 
     if retval == -1:
         raise RuntimeError("Failed to disable ASLR.")
+    
+def hexify(s):
+    return "b'" + re.sub(r'.', lambda m: f'\\x{ord(m.group(0)):02x}', s.decode('latin1')) + "'"

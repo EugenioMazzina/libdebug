@@ -278,7 +278,7 @@ class PtraceInterface(DebuggingInterface):
         else:
             self._global_state.handle_syscall_enabled = False
 
-        if external:
+        if not external:
             mapping = self.maps()[1]
             map_start = mapping.start
             map_end = mapping.end
@@ -722,3 +722,15 @@ class PtraceInterface(DebuggingInterface):
     def mem(self:PtraceInterface) -> object:
         map = self.maps()[1]
         return get_process_mem(self.process_id, map)
+    
+    def scan(self:PtraceInterface) -> None:
+        raw = self.mem()
+        text_start=self.maps()[1].start
+        index=0
+        count=0
+        while(index<raw.len()):
+            opcode=raw[index+3:index+4].toInt()
+            #match opcode:
+                #may some god have mercy for what I'm about to do
+                #case(00):
+                    #index=index+

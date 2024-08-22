@@ -7,37 +7,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void base_test(){
-    asm volatile(
-        "push %%rbp\n\t"
-        "push %%rax\n\t"
-        "xor %%rax, %%rax, %%rax\n\t"
-        "xor %%rax, %%rax, %%rax\n\t"
-        "xor %%rax, %%rax, %%rax\n\t"
-        "pop %%rax\n\t"
-        "pop %%rbp\n\t"
-        :
-        :
-        : "rax"
-    );
-    base_test_2();
+void inner(int a, int i){
+    a=a+i;
 }
 
-void base_test_2(){
-    asm volatile(
-        "push %%rbp\n\t"
-        "nop\n\t"
-        "pop %%rbp\n\t"
-        :
-        :
-        :
-    );
+void base_test(){
+    int a=0;
+    for(int i=0; i<10; i++){
+        a++;
+        printf("a = %d\n", a);
+        inner(a,i);
+    }
 }
 
 int main()
 {
-    printf("Provola\n");
-
     base_test();
 
     return EXIT_SUCCESS;

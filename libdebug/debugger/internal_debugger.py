@@ -339,14 +339,25 @@ class InternalDebugger:
         if not self.trace_on:
             self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
+    def test(self: InternalDebugger) -> None:
+        self.__polling_thread_command_queue.put((self.__threaded_cont, ()))
+        self._join_and_check_status()
+        self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
+        self._join_and_check_status()
+        self.__polling_thread_command_queue.put((self.__threaded_cont, ()))
+        self._join_and_check_status()
+        self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
+
     def trace(self: InternalDebugger, external: bool=False) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
         #print("entering trace")
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
+        self._ensure_process_stopped()
         if(self.trace_on):
             print(self.trace_counter," instructions have been executed since tracing was enabled")
         else:
             self.trace_on = True
+            #self.debugging_interface.scan()
             if external:
                 self.external_tracing = True
             print("tracing enabled")

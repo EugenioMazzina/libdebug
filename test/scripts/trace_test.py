@@ -16,10 +16,8 @@ class TraceTest(unittest.TestCase):
         d = self.d
         d.run()
         bp = d.breakpoint("base_test")
-        bbp = d.breakpoint("base_test_2")
         d.cont()
         d.trace()
-        d.cont()
         result = d.trace()
         #uncomment these when dependencies will actually work
         #self.assertTrue(result == 8)
