@@ -29,12 +29,12 @@ def get_process_maps(process_id: int) -> list[MemoryMap]:
     return [MemoryMap.parse(vmap) for vmap in maps]
 
 @functools.cache
-def get_process_mem(process_id: int, map : MemoryMap) -> object:
+def get_process_mem(process_id: int, exe_end : int, text_start : int) -> object:
     with Path(f"/proc/{process_id}/mem").open(mode="rb") as mem_file:
-        mem_file.seek(map.start)
-        chunk = mem_file.read(map.size)
+        mem_file.seek(text_start)
+        chunk = mem_file.read(exe_end-text_start)
     
-    return hexify(chunk)
+    return chunk
 
 
 @functools.cache

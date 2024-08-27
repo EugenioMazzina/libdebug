@@ -12,7 +12,9 @@ import pty
 import tty
 from pathlib import Path
 from typing import TYPE_CHECKING
+from capstone import *
 
+from libdebug.data.basic_block import BasicBlock
 from libdebug.architectures.ptrace_hardware_breakpoint_provider import (
     ptrace_hardware_breakpoint_manager_provider,
 )
@@ -75,6 +77,9 @@ class PtraceInterface(DebuggingInterface):
     _internal_debugger: InternalDebugger
     """The internal debugger instance."""
 
+    code_blocks : BasicBlock
+    """An array containing the basic blocks of the code"""
+
     def __init__(self: PtraceInterface) -> None:
         super().__init__()
 
@@ -92,11 +97,14 @@ class PtraceInterface(DebuggingInterface):
 
         self.hardware_bp_helpers = {}
 
+        self.code_blocks=[]
+
         self.reset()
 
     def reset(self: PtraceInterface) -> None:
         """Resets the state of the interface."""
         self.hardware_bp_helpers.clear()
+        self.code_blocks=[]
         self.lib_trace.free_thread_list(self._global_state)
         self.lib_trace.free_breakpoints(self._global_state)
 
@@ -721,16 +729,34 @@ class PtraceInterface(DebuggingInterface):
     
     def mem(self:PtraceInterface) -> object:
         map = self.maps()[1]
-        return get_process_mem(self.process_id, map)
-    
+        text = self._internal_debugger.resolve_symbol("_start", "hybrid")
+        return get_process_mem(self.process_id, map.end, text)
+
     def scan(self:PtraceInterface) -> None:
-        raw = self.mem()
-        text_start=self.maps()[1].start
-        index=0
-        count=0
-        while(index<raw.len()):
-            opcode=raw[index+3:index+4].toInt()
-            #match opcode:
-                #may some god have mercy for what I'm about to do
-                #case(00):
-                    #index=index+
+        closers=['jae','ja','jbe','jb','jcxz','jecxz','je','jge','jg','jle','jl','jne','jno','jnp','jns','jo','jp','jrcxz',
+                 'jmp','js','call','ret','loop','loope','loopne','hlt']
+        block_start=None
+        block_count=0
+        raw=self.mem()
+        text_start=self._internal_debugger.resolve_symbol("_start", "hybrid")
+        md=Cs(CS_ARCH_X86, CS_MODE_64)
+        for i in md.disasm(raw, text_start):
+            if i.mnemonic not in closers:
+                if block_start:
+                    block_count+=1
+                    #add here the part for the instruction type tracing
+                else:
+                    if not i.mnemonic == 'nop':
+                        block_start=i.address
+                        block_count=1
+            else:
+                if block_start:
+                    block_count+=1
+                    block=BasicBlock(block_start, i.address, block_count)
+                    self.code_blocks.append(block)
+                    block_count=0
+                    block_start=None
+                else:
+                    #this means the new block only contains the jump instruction
+                    block=BasicBlock(i.address, i.address, 1)
+                    self.code_blocks.append(block)

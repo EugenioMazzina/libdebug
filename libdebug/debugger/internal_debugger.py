@@ -339,27 +339,34 @@ class InternalDebugger:
         if not self.trace_on:
             self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
+    def striding_cont(self: InternalDebugger,count : int) -> None:
+        self.trace_counter+=count
+
     def test(self: InternalDebugger) -> None:
-        self.__polling_thread_command_queue.put((self.__threaded_cont, ()))
-        self._join_and_check_status()
-        self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
-        self._join_and_check_status()
-        self.__polling_thread_command_queue.put((self.__threaded_cont, ()))
-        self._join_and_check_status()
-        self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
+        self.debugging_interface.test()
 
     def trace(self: InternalDebugger, external: bool=False) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
-        #print("entering trace")
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
         self._ensure_process_stopped()
         if(self.trace_on):
             print(self.trace_counter," instructions have been executed since tracing was enabled")
         else:
-            self.trace_on = True
-            #self.debugging_interface.scan()
+            self.trace_on = False
+            self.debugging_interface.scan()
             if external:
                 self.external_tracing = True
+            
+            block=None
+            for b in self.debugging_interface.code_blocks:
+                if self.threads[0].instruction_pointer <= b.end and self.threads[0].instruction_pointer >= b.start:
+                    #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
+                    block=b
+            if not block:
+                raise RuntimeError("trace called outside the scope of the function.")
+            requires_steps=not self.threads[0].instruction_pointer==block.start #this is true if we are not perfectly aligned with the blocks, so we need to step to count instructions 
+            bp=self.breakpoint(position=block.end,hardware=requires_steps) #hw bp required due to bug with stepping_cont
+            bp._set_internal_callback(lambda t,b:t._internal_debugger.striding_cont(block.count))
             print("tracing enabled")
 
     @background_alias(_background_invalid_call)

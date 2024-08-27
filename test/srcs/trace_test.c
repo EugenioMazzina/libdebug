@@ -15,7 +15,6 @@ void base_test(){
     int a=0;
     for(int i=0; i<10; i++){
         a++;
-        printf("a = %d\n", a);
         inner(a,i);
     }
 }

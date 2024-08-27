@@ -46,6 +46,7 @@ class Breakpoint:
 
     _disabled_for_step: bool = False
     _changed: bool = False
+    _internal_callback: None | Callable[[ThreadContext,Breakpoint], None] = None
 
     def enable(self: Breakpoint) -> None:
         """Enable the breakpoint."""
@@ -66,3 +67,6 @@ class Breakpoint:
     def __hash__(self: Breakpoint) -> int:
         """Hash the breakpoint by its address, so that it can be used in sets and maps correctly."""
         return hash(self.address)
+    
+    def _set_internal_callback(self:Breakpoint,call:Callable) -> None:
+        self._internal_callback=call

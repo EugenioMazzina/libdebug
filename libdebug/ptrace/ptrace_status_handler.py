@@ -116,9 +116,13 @@ class PtraceStatusHandler:
 
             if bp.callback:
                 bp.callback(thread, bp)
-            else:
+                if bp._internal_callback:
+                    bp._internal_callback(thread,bp)
+            elif not bp._internal_callback:
                 # If the breakpoint has no callback, we need to stop the process despite the other signals
                 self.internal_debugger.resume_context.resume = False
+            else:
+                bp._internal_callback(thread,bp)
 
     def _manage_syscall_on_enter(
         self: PtraceStatusHandler,
