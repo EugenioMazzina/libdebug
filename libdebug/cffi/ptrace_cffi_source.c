@@ -592,7 +592,6 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
     }
 
     uint64_t previous_ip, current_ip;
-    uint64_t first_opcode_byte, opcode_window;
     int count=0, status=0;
 
     do{
@@ -607,14 +606,11 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
 
         current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
-        // Get value at current instruction pointer
-        opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
-        first_opcode_byte = opcode_window & 0xFF;
 
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
         // we do the same if we hit a software breakpoint
-        if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte))
+        if (current_ip == previous_ip)
             break;
 
         // We have not hit a breakpoint, hence the counter increased
