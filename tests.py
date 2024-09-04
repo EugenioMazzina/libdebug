@@ -3,18 +3,19 @@ from libdebug import debugger
 d=debugger("test/binaries/trace_test")
 d.run()
 a=lambda t,b : print(hex(t.regs.rip))
-bp = d.breakpoint(0x40115a, hardware=True)
-dp= d.breakpoint(0x401167, hardware=True)
-bbp= d.breakpoint(0x401130, hardware=True)
-bbbp = d.breakpoint(0x40114c,hardware=True)
+bp = d.breakpoint(0x40114d)
+bbbp = d.breakpoint(0x40113e)
 print(hex(d.regs.rip))
 d.cont() #hit bp
-print(hex(d.regs.rip))
+print(hex(d.regs.rip)) #4d
 d.trace()
 d.cont() #hit bbp
-print(hex(d.regs.rip))
-#d.trace()
+print(hex(d.regs.rip)) #3e
+d.trace()
 d.cont() #hit bbbp
-#d.trace()
+d.trace()
+print(hex(d.regs.rip)) #7c
+d.step_until(0x401170)
 print(hex(d.regs.rip))
+d.trace()
 d.kill()

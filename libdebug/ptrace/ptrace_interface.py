@@ -77,9 +77,6 @@ class PtraceInterface(DebuggingInterface):
     _internal_debugger: InternalDebugger
     """The internal debugger instance."""
 
-    code_blocks : BasicBlock
-    """An array containing the basic blocks of the code"""
-
     def __init__(self: PtraceInterface) -> None:
         super().__init__()
 
@@ -97,14 +94,11 @@ class PtraceInterface(DebuggingInterface):
 
         self.hardware_bp_helpers = {}
 
-        self.code_blocks=[]
-
         self.reset()
 
     def reset(self: PtraceInterface) -> None:
         """Resets the state of the interface."""
         self.hardware_bp_helpers.clear()
-        self.code_blocks=[]
         self.lib_trace.free_thread_list(self._global_state)
         self.lib_trace.free_breakpoints(self._global_state)
 
@@ -326,7 +320,7 @@ class PtraceInterface(DebuggingInterface):
 
         self._internal_debugger.resume_context.is_a_step = True
 
-    def step_until(self: PtraceInterface, thread: ThreadContext, address: int, max_steps: int) -> None:
+    def step_until(self: PtraceInterface, thread: ThreadContext, address: int, max_steps: int) -> int:
         """Executes instructions of the specified thread until the specified address is reached.
 
         Args:
@@ -350,6 +344,8 @@ class PtraceInterface(DebuggingInterface):
 
         # As the wait is done internally, we must invalidate the cache
         invalidate_process_cache()
+
+        return result
 
     def finish(self: PtraceInterface, thread: ThreadContext, heuristic: str) -> None:
         """Continues execution until the current function returns.
@@ -751,12 +747,11 @@ class PtraceInterface(DebuggingInterface):
                         block_count=1
             else:
                 if block_start:
-                    block_count+=1
                     block=BasicBlock(block_start, i.address, block_count)
-                    self.code_blocks.append(block)
+                    self._internal_debugger.code_blocks[block.start]=block
                     block_count=0
                     block_start=None
                 else:
                     #this means the new block only contains the jump instruction
-                    block=BasicBlock(i.address, i.address, 1)
-                    self.code_blocks.append(block)
+                    block=BasicBlock(i.address, i.address, 0)
+                    self._internal_debugger.code_blocks[block.start]=block

@@ -21,6 +21,7 @@ void base_test(){
 
 int main()
 {
+    printf("Provola");
     base_test();
 
     return EXIT_SUCCESS;

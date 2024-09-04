@@ -26,6 +26,7 @@ from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_view import MemoryView
 from libdebug.data.signal_catcher import SignalCatcher
 from libdebug.data.syscall_handler import SyscallHandler
+from libdebug.data.basic_block import BasicBlock
 from libdebug.debugger.internal_debugger_instance_manager import (
     extend_internal_debugger,
     link_to_internal_debugger,
@@ -155,6 +156,9 @@ class InternalDebugger:
     external_tracing : bool
     """True if tracing of instructions from external libraries should be performed"""
 
+    code_blocks : dict[int,BasicBlock]
+    """An array containing the basic blocks of the code"""
+
     def __init__(self: InternalDebugger) -> None:
         """Initialize the context."""
         # These must be reinitialized on every call to "debugger"
@@ -181,6 +185,7 @@ class InternalDebugger:
         self.__polling_thread_response_queue = Queue()
         self.trace_counter=0
         self.external_tracing=False
+        self.code_blocks = {}
 
     def clear(self: InternalDebugger) -> None:
         """Reinitializes the context, so it is ready for a new run."""
@@ -201,6 +206,7 @@ class InternalDebugger:
         self.resume_context.clear()
         self.trace_counter=0
         self.external_tracing=False
+        self.code_blocks.clear()
 
     def start_up(self: InternalDebugger) -> None:
         """Starts up the context."""
@@ -341,6 +347,9 @@ class InternalDebugger:
 
     def striding_cont(self: InternalDebugger,count : int) -> None:
         self.trace_counter+=count
+        self._background_step(self.threads[0])
+        self.trace_counter+=1 #we executed the jump
+        #time to find the next block
 
     def test(self: InternalDebugger) -> None:
         self.debugging_interface.test()
@@ -352,22 +361,10 @@ class InternalDebugger:
         if(self.trace_on):
             print(self.trace_counter," instructions have been executed since tracing was enabled")
         else:
-            self.trace_on = False
-            self.debugging_interface.scan()
+            self.trace_on = True
             if external:
                 self.external_tracing = True
-            
-            block=None
-            for b in self.debugging_interface.code_blocks:
-                if self.threads[0].instruction_pointer <= b.end and self.threads[0].instruction_pointer >= b.start:
-                    #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
-                    block=b
-            if not block:
-                raise RuntimeError("trace called outside the scope of the function.")
-            requires_steps=not self.threads[0].instruction_pointer==block.start #this is true if we are not perfectly aligned with the blocks, so we need to step to count instructions 
-            bp=self.breakpoint(position=block.end,hardware=requires_steps) #hw bp required due to bug with stepping_cont
-            bp._set_internal_callback(lambda t,b:t._internal_debugger.striding_cont(block.count))
-            print("tracing enabled")
+            self.debugging_interface.scan()
 
     @background_alias(_background_invalid_call)
     def interrupt(self: InternalDebugger) -> None:
@@ -1264,9 +1261,48 @@ class InternalDebugger:
 
         self.set_running()
         if(self.trace_on):
-            increase=self.debugging_interface.counting_cont(external=self.external_tracing)
-            print("increase is ",increase)
-            self.trace_counter+=increase
+#            block=None
+#            ip=self.threads[0].instruction_pointer
+#            if ip in self.code_blocks:
+#                block=self.code_blocks[ip]
+#                requires_steps=False #true if we are perfectly aligned with a code block, so we can use the fast method
+#            else:
+#                for b in self.code_blocks.values():
+#                    if ip <= b.end and ip >= b.start:
+#                        #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
+#                        block=b
+#                        requires_steps=True
+#            if not block:
+#                #we are outside of the scope of the function, so we need to count 
+#                requires_steps=True
+#            else:
+#                if block.end in self.code_blocks:
+#                    bp=self.breakpoints[block.end] #we do not want to overwrite the poor innocent user placed bp
+#                else:
+#                    #if the breakpoint is not already there we put it ourselves
+#                    address = self.resolve_address(block.end, "hybrid")
+#                    position = hex(block.end)
+#                    bp = Breakpoint(address, position, 0, True, condition= "x") #hw bp required due to bug with stepping_cont
+#                    link_to_internal_debugger(bp, self)
+#
+#                    self.__threaded_breakpoint(bp)
+#
+#                    # the breakpoint should have been set by interface
+#                    if address not in self.breakpoints:
+#                        raise RuntimeError("Something went wrong while inserting the breakpoint.")
+#                bp._set_internal_callback(lambda t,b:t._internal_debugger.striding_cont(block.count))
+#
+#                for b in self.breakpoints.values():
+#                    if b.address > block.start and b.address < block.end:
+#                        requires_steps=True #there is a breakpoint in the middle of the block, that means we have to step until we reach it
+#                        break
+#
+#            if requires_steps:
+                increase=self.debugging_interface.counting_cont(external=self.external_tracing)
+                print("increase is ",increase)
+                self.trace_counter+=increase
+#            else:
+#                self.debugging_interface.cont()
         else:
             self.debugging_interface.cont()
 
@@ -1315,6 +1351,7 @@ class InternalDebugger:
         liblog.debugger("Stepping thread %s.", thread.thread_id)
         self.debugging_interface.step(thread)
         self.set_running()
+        self.trace_counter+=1
 
     def __threaded_step_until(
         self: InternalDebugger,
@@ -1323,8 +1360,9 @@ class InternalDebugger:
         max_steps: int,
     ) -> None:
         liblog.debugger("Stepping thread %s until 0x%x.", thread.thread_id, address)
-        self.debugging_interface.step_until(thread, address, max_steps)
+        steps=self.debugging_interface.step_until(thread, address, max_steps)
         self.set_stopped()
+        self.trace_counter+=steps
 
     def __threaded_finish(self: InternalDebugger, thread: ThreadContext, heuristic: str) -> None:
         prefix = heuristic.capitalize()
