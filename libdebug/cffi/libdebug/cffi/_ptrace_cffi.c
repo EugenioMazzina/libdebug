@@ -1213,7 +1213,9 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
         first_opcode_byte = opcode_window & 0xFF;
 
         if((map_end != map_start) && current_ip < map_end && current_ip > map_start){
-            printf("%" PRIu64 "\n", current_ip);
+            printf("%" PRIu64 "    ", current_ip);
+            printf("%" PRIu64 "    ",first_opcode_byte);
+            printf("%s", IS_SW_BREAKPOINT(first_opcode_byte) ? "true" : "false");
         }
 
 
