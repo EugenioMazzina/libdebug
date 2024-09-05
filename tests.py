@@ -8,9 +8,9 @@ bbbp = d.breakpoint(0x40113e)
 print(hex(d.regs.rip))
 d.cont() #hit bp
 print(hex(d.regs.rip)) #4d
-d.trace()
-d.cont() #hit bbp
-#d.finish(heuristic="step-mode")
+#d.trace()
+#d.cont() #hit bbp
+d.finish(heuristic="step-mode")
 print(hex(d.regs.rip)) #3e
 #d.trace()
 #d.cont() #hit bbbp
