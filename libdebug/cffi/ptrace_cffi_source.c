@@ -631,6 +631,9 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
         }
     } while(count>-1);
 
+    // update the registers
+    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
     return count;
 }
 
