@@ -1299,6 +1299,7 @@ class InternalDebugger:
 #
 #            if requires_steps:
                 increase=self.debugging_interface.counting_cont(external=self.external_tracing)
+                self.set_stopped()
                 print("increase is ",increase)
                 self.trace_counter+=increase
 #            else:

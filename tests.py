@@ -13,8 +13,8 @@ d.trace()
 d.finish(heuristic="step-mode")
 print(hex(d.regs.rip)) #3e
 #d.trace()
-d.cont() #hit bbbp
-#d.finish(heuristic="step-mode")
+#d.cont() #hit bbbp
+d.finish(heuristic="step-mode")
 #d.trace()
 print(hex(d.regs.rip)) #7c
 d.step_until(0x401170)

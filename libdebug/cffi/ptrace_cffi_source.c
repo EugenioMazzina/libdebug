@@ -290,6 +290,8 @@ int step_until(struct global_state *state, int tid, uint64_t addr, int max_steps
         // wait for the child
         waitpid(tid, &status, 0);
 
+        printf("waited");
+
         previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
         // update the registers
