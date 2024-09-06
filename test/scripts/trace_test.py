@@ -15,12 +15,12 @@ class TraceTest(unittest.TestCase):
     def test_trace_basic(self):
         d = self.d
         d.run()
-        bp = d.breakpoint("base_test")
+        bp = d.breakpoint(0x40114d)
+        bbp = d.breakpoint(0x40113e)
         d.cont()
-        d.trace()
+        d.trace() #@ 4d
         result = d.trace()
-        #uncomment these when dependencies will actually work
-        #self.assertTrue(result == 8)
+        self.assertTrue(result == 16)
         #d.cont()
         result = d.trace()
         #self.assertTrue(result == 12)
