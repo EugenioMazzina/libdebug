@@ -1259,7 +1259,6 @@ class InternalDebugger:
         else:
             liblog.debugger("Continuing process %d.", self.process_id)
 
-        self.set_running()
         if(self.trace_on):
 #            block=None
 #            ip=self.threads[0].instruction_pointer
@@ -1305,6 +1304,7 @@ class InternalDebugger:
 #            else:
 #                self.debugging_interface.cont()
         else:
+            self.set_running()
             self.debugging_interface.cont()
 
     def __threaded_wait(self: InternalDebugger) -> None:
