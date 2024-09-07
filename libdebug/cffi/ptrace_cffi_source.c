@@ -596,6 +596,7 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
     int64_t opcode_window, first_opcode_byte;
     int count=0, status=0;
 
+    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
     current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
         printf("%" PRIu64 "\n", current_ip);
 
