@@ -116,6 +116,11 @@ ffibuilder.cdef(
         _Bool handle_syscall_enabled;
     };
 
+    struct count_result {
+    int count;
+    int status;
+    };
+
 
     int ptrace_trace_me(void);
     int ptrace_attach(int pid);

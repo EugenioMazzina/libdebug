@@ -2606,6 +2606,16 @@ _cffi_f_wait_all_and_update_regs(PyObject *self, PyObject *args)
 #endif
 
 _CFFI_UNUSED_FN
+static void _cffi_checkfld_struct_count_result(struct count_result *p)
+{
+  /* only to generate compile-time warnings or errors */
+  (void)p;
+  (void)((p->count) | 0);  /* check that 'struct count_result.count' is an integer */
+  (void)((p->status) | 0);  /* check that 'struct count_result.status' is an integer */
+}
+struct _cffi_align_struct_count_result { char x; struct count_result y; };
+
+_CFFI_UNUSED_FN
 static void _cffi_checkfld_struct_global_state(struct global_state *p)
 {
   /* only to generate compile-time warnings or errors */
@@ -2730,6 +2740,12 @@ static const struct _cffi_global_s _cffi_globals[] = {
 };
 
 static const struct _cffi_field_s _cffi_fields[] = {
+  { "count", offsetof(struct count_result, count),
+             sizeof(((struct count_result *)0)->count),
+             _CFFI_OP(_CFFI_OP_NOOP, 1) },
+  { "status", offsetof(struct count_result, status),
+              sizeof(((struct count_result *)0)->status),
+              _CFFI_OP(_CFFI_OP_NOOP, 1) },
   { "t_HEAD", offsetof(struct global_state, t_HEAD),
               sizeof(((struct global_state *)0)->t_HEAD),
               _CFFI_OP(_CFFI_OP_NOOP, 76) },
@@ -2871,20 +2887,20 @@ static const struct _cffi_field_s _cffi_fields[] = {
 };
 
 static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
-  { "count_result", 71, _CFFI_F_OPAQUE,
-    (size_t)-1, -1, -1, 0 /* opaque */ },
+  { "count_result", 71, _CFFI_F_CHECK_FIELDS,
+    sizeof(struct count_result), offsetof(struct _cffi_align_struct_count_result, y), 0, 2 },
   { "global_state", 72, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct global_state), offsetof(struct _cffi_align_struct_global_state, y), 0, 3 },
+    sizeof(struct global_state), offsetof(struct _cffi_align_struct_global_state, y), 2, 3 },
   { "ptrace_hit_bp", 73, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct ptrace_hit_bp), offsetof(struct _cffi_align_struct_ptrace_hit_bp, y), 3, 4 },
+    sizeof(struct ptrace_hit_bp), offsetof(struct _cffi_align_struct_ptrace_hit_bp, y), 5, 4 },
   { "software_breakpoint", 75, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct software_breakpoint), offsetof(struct _cffi_align_struct_software_breakpoint, y), 7, 5 },
+    sizeof(struct software_breakpoint), offsetof(struct _cffi_align_struct_software_breakpoint, y), 9, 5 },
   { "thread", 77, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct thread), offsetof(struct _cffi_align_struct_thread, y), 12, 4 },
+    sizeof(struct thread), offsetof(struct _cffi_align_struct_thread, y), 14, 4 },
   { "thread_status", 78, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct thread_status), offsetof(struct _cffi_align_struct_thread_status, y), 16, 3 },
+    sizeof(struct thread_status), offsetof(struct _cffi_align_struct_thread_status, y), 18, 3 },
   { "user_regs_struct", 80, _CFFI_F_CHECK_FIELDS,
-    sizeof(struct user_regs_struct), offsetof(struct _cffi_align_struct_user_regs_struct, y), 19, 27 },
+    sizeof(struct user_regs_struct), offsetof(struct _cffi_align_struct_user_regs_struct, y), 21, 27 },
 };
 
 static const struct _cffi_type_context_s _cffi_type_context = {
