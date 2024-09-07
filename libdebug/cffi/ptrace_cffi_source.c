@@ -290,7 +290,6 @@ int step_until(struct global_state *state, int tid, uint64_t addr, int max_steps
         // wait for the child
         waitpid(tid, &status, 0);
 
-        printf("waited");
 
         previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
@@ -597,7 +596,11 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
     int64_t opcode_window, first_opcode_byte;
     int count=0, status=0;
 
+    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+        printf("%" PRIu64 "\n", current_ip);
+
     do{
+
         if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
 
         waitpid(tid, &status, 0);
