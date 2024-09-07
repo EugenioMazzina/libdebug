@@ -650,6 +650,11 @@ struct global_state {
     _Bool handle_syscall_enabled;
 };
 
+struct count_result {
+    int count;
+    int status;
+};
+
 struct user_regs_struct *register_thread(struct global_state *state, int tid)
 {
     // Verify if the thread is already registered
@@ -1175,8 +1180,10 @@ void free_breakpoints(struct global_state *state)
     state->b_HEAD = NULL;
 }
 
-int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
+struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
 {
+    struct count_result *result;
+    result = malloc(sizeof(struct count_result));
     int status = prepare_for_run(state, tid);
 
     struct thread *stepping_thread = state->t_HEAD;
@@ -1190,7 +1197,8 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
 
     if (!stepping_thread) {
         perror("Thread not found");
-        return -1;
+        result->status=-1;
+        return result;
     }
 
     uint64_t previous_ip, current_ip;
@@ -1203,7 +1211,10 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
 
     do{
 
-        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
+        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)){
+            result->status=-1;
+            return result;
+        }
 
         waitpid(tid, &status, 0);
 
@@ -1241,7 +1252,11 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
     // update the registers
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
-    return count;
+    result -> count = count;
+    result -> status = status;
+
+
+    return result;
 }
 
 int stepping_finish(struct global_state *state, int tid)
@@ -1335,7 +1350,7 @@ static void *_cffi_types[] = {
 /*  1 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7), // int
 /*  2 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /*  3 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // int()(struct global_state *, int)
-/*  4 */ _CFFI_OP(_CFFI_OP_POINTER, 70), // struct global_state *
+/*  4 */ _CFFI_OP(_CFFI_OP_POINTER, 72), // struct global_state *
 /*  5 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /*  6 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /*  7 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // int()(struct global_state *, int, uint64_t, int)
@@ -1344,23 +1359,23 @@ static void *_cffi_types[] = {
 /* 10 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24), // uint64_t
 /* 11 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 12 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 13 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // int()(struct global_state *, int, uint64_t, uint64_t)
-/* 14 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 15 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
-/* 16 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
-/* 17 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 13 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // int()(void)
+/* 14 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
+/* 15 */ _CFFI_OP(_CFFI_OP_FUNCTION, 69), // long()(struct global_state *, int)
+/* 16 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 17 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 18 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 19 */ _CFFI_OP(_CFFI_OP_FUNCTION, 1), // int()(void)
-/* 20 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 21 */ _CFFI_OP(_CFFI_OP_FUNCTION, 69), // long()(struct global_state *, int)
-/* 22 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
-/* 23 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 19 */ _CFFI_OP(_CFFI_OP_FUNCTION, 70), // struct count_result *()(struct global_state *, int, uint64_t, uint64_t)
+/* 20 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
+/* 21 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
+/* 22 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
+/* 23 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 24 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /* 25 */ _CFFI_OP(_CFFI_OP_FUNCTION, 65), // struct thread_status *()(struct global_state *, int)
 /* 26 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 27 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 28 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 29 */ _CFFI_OP(_CFFI_OP_FUNCTION, 77), // struct user_regs_struct *()(struct global_state *, int)
+/* 29 */ _CFFI_OP(_CFFI_OP_FUNCTION, 79), // struct user_regs_struct *()(struct global_state *, int)
 /* 30 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 31 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 32 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
@@ -1376,42 +1391,44 @@ static void *_cffi_types[] = {
 /* 42 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 43 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 44 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 45 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(int)
+/* 45 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(int)
 /* 46 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 47 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 48 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(struct global_state *)
+/* 48 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(struct global_state *)
 /* 49 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 50 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 51 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(struct global_state *, int)
+/* 51 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(struct global_state *, int)
 /* 52 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 53 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 54 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 55 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(struct global_state *, int, uint64_t)
+/* 55 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(struct global_state *, int, uint64_t)
 /* 56 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 57 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 7),
 /* 58 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 59 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 60 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(struct global_state *, uint64_t)
+/* 60 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(struct global_state *, uint64_t)
 /* 61 */ _CFFI_OP(_CFFI_OP_NOOP, 4),
 /* 62 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 24),
 /* 63 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
-/* 64 */ _CFFI_OP(_CFFI_OP_FUNCTION, 80), // void()(struct thread_status *)
-/* 65 */ _CFFI_OP(_CFFI_OP_POINTER, 76), // struct thread_status *
+/* 64 */ _CFFI_OP(_CFFI_OP_FUNCTION, 82), // void()(struct thread_status *)
+/* 65 */ _CFFI_OP(_CFFI_OP_POINTER, 78), // struct thread_status *
 /* 66 */ _CFFI_OP(_CFFI_OP_FUNCTION_END, 0),
 /* 67 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 1), // _Bool
 /* 68 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 2), // char
 /* 69 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 9), // long
-/* 70 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0), // struct global_state
-/* 71 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 1), // struct ptrace_hit_bp
-/* 72 */ _CFFI_OP(_CFFI_OP_POINTER, 73), // struct software_breakpoint *
-/* 73 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 2), // struct software_breakpoint
-/* 74 */ _CFFI_OP(_CFFI_OP_POINTER, 75), // struct thread *
-/* 75 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 3), // struct thread
-/* 76 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 4), // struct thread_status
-/* 77 */ _CFFI_OP(_CFFI_OP_POINTER, 78), // struct user_regs_struct *
-/* 78 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 5), // struct user_regs_struct
-/* 79 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10), // unsigned long
-/* 80 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
+/* 70 */ _CFFI_OP(_CFFI_OP_POINTER, 71), // struct count_result *
+/* 71 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 0), // struct count_result
+/* 72 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 1), // struct global_state
+/* 73 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 2), // struct ptrace_hit_bp
+/* 74 */ _CFFI_OP(_CFFI_OP_POINTER, 75), // struct software_breakpoint *
+/* 75 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 3), // struct software_breakpoint
+/* 76 */ _CFFI_OP(_CFFI_OP_POINTER, 77), // struct thread *
+/* 77 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 4), // struct thread
+/* 78 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 5), // struct thread_status
+/* 79 */ _CFFI_OP(_CFFI_OP_POINTER, 80), // struct user_regs_struct *
+/* 80 */ _CFFI_OP(_CFFI_OP_STRUCT_UNION, 6), // struct user_regs_struct
+/* 81 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 10), // unsigned long
+/* 82 */ _CFFI_OP(_CFFI_OP_PRIMITIVE, 0), // void
 };
 
 static int _cffi_d_cont_all_and_set_bps(struct global_state * x0, int x1)
@@ -2224,7 +2241,7 @@ _cffi_f_register_thread(PyObject *self, PyObject *args)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(77));
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(79));
   if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
   return pyresult;
 }
@@ -2340,7 +2357,7 @@ _cffi_f_step_until(PyObject *self, PyObject *args)
 #  define _cffi_f_step_until _cffi_d_step_until
 #endif
 
-static int _cffi_d_stepping_cont(struct global_state * x0, int x1, uint64_t x2, uint64_t x3)
+static struct count_result * _cffi_d_stepping_cont(struct global_state * x0, int x1, uint64_t x2, uint64_t x3)
 {
   return stepping_cont(x0, x1, x2, x3);
 }
@@ -2354,7 +2371,7 @@ _cffi_f_stepping_cont(PyObject *self, PyObject *args)
   uint64_t x3;
   Py_ssize_t datasize;
   struct _cffi_freeme_s *large_args_free = NULL;
-  int result;
+  struct count_result * result;
   PyObject *pyresult;
   PyObject *arg0;
   PyObject *arg1;
@@ -2392,7 +2409,7 @@ _cffi_f_stepping_cont(PyObject *self, PyObject *args)
   Py_END_ALLOW_THREADS
 
   (void)self; /* unused */
-  pyresult = _cffi_from_c_int(result, int);
+  pyresult = _cffi_from_c_pointer((char *)result, _cffi_type(70));
   if (large_args_free != NULL) _cffi_free_array_arguments(large_args_free);
   return pyresult;
 }
@@ -2700,12 +2717,12 @@ static const struct _cffi_global_s _cffi_globals[] = {
   { "ptrace_pokeuser", (void *)_cffi_f_ptrace_pokeuser, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 40), (void *)_cffi_d_ptrace_pokeuser },
   { "ptrace_reattach_from_gdb", (void *)_cffi_f_ptrace_reattach_from_gdb, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 51), (void *)_cffi_d_ptrace_reattach_from_gdb },
   { "ptrace_set_options", (void *)_cffi_f_ptrace_set_options, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_O, 45), (void *)_cffi_d_ptrace_set_options },
-  { "ptrace_trace_me", (void *)_cffi_f_ptrace_trace_me, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 19), (void *)_cffi_d_ptrace_trace_me },
+  { "ptrace_trace_me", (void *)_cffi_f_ptrace_trace_me, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_N, 13), (void *)_cffi_d_ptrace_trace_me },
   { "register_breakpoint", (void *)_cffi_f_register_breakpoint, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 55), (void *)_cffi_d_register_breakpoint },
   { "register_thread", (void *)_cffi_f_register_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 29), (void *)_cffi_d_register_thread },
-  { "singlestep", (void *)_cffi_f_singlestep, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 21), (void *)_cffi_d_singlestep },
+  { "singlestep", (void *)_cffi_f_singlestep, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 15), (void *)_cffi_d_singlestep },
   { "step_until", (void *)_cffi_f_step_until, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 7), (void *)_cffi_d_step_until },
-  { "stepping_cont", (void *)_cffi_f_stepping_cont, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 13), (void *)_cffi_d_stepping_cont },
+  { "stepping_cont", (void *)_cffi_f_stepping_cont, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 19), (void *)_cffi_d_stepping_cont },
   { "stepping_finish", (void *)_cffi_f_stepping_finish, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 3), (void *)_cffi_d_stepping_finish },
   { "unregister_breakpoint", (void *)_cffi_f_unregister_breakpoint, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 60), (void *)_cffi_d_unregister_breakpoint },
   { "unregister_thread", (void *)_cffi_f_unregister_thread, _CFFI_OP(_CFFI_OP_CPYTHON_BLTN_V, 51), (void *)_cffi_d_unregister_thread },
@@ -2715,10 +2732,10 @@ static const struct _cffi_global_s _cffi_globals[] = {
 static const struct _cffi_field_s _cffi_fields[] = {
   { "t_HEAD", offsetof(struct global_state, t_HEAD),
               sizeof(((struct global_state *)0)->t_HEAD),
-              _CFFI_OP(_CFFI_OP_NOOP, 74) },
+              _CFFI_OP(_CFFI_OP_NOOP, 76) },
   { "b_HEAD", offsetof(struct global_state, b_HEAD),
               sizeof(((struct global_state *)0)->b_HEAD),
-              _CFFI_OP(_CFFI_OP_NOOP, 72) },
+              _CFFI_OP(_CFFI_OP_NOOP, 74) },
   { "handle_syscall_enabled", offsetof(struct global_state, handle_syscall_enabled),
                               sizeof(((struct global_state *)0)->handle_syscall_enabled),
                               _CFFI_OP(_CFFI_OP_NOOP, 67) },
@@ -2748,19 +2765,19 @@ static const struct _cffi_field_s _cffi_fields[] = {
                _CFFI_OP(_CFFI_OP_NOOP, 68) },
   { "next", offsetof(struct software_breakpoint, next),
             sizeof(((struct software_breakpoint *)0)->next),
-            _CFFI_OP(_CFFI_OP_NOOP, 72) },
+            _CFFI_OP(_CFFI_OP_NOOP, 74) },
   { "tid", offsetof(struct thread, tid),
            sizeof(((struct thread *)0)->tid),
            _CFFI_OP(_CFFI_OP_NOOP, 1) },
   { "regs", offsetof(struct thread, regs),
             sizeof(((struct thread *)0)->regs),
-            _CFFI_OP(_CFFI_OP_NOOP, 78) },
+            _CFFI_OP(_CFFI_OP_NOOP, 80) },
   { "signal_to_forward", offsetof(struct thread, signal_to_forward),
                          sizeof(((struct thread *)0)->signal_to_forward),
                          _CFFI_OP(_CFFI_OP_NOOP, 1) },
   { "next", offsetof(struct thread, next),
             sizeof(((struct thread *)0)->next),
-            _CFFI_OP(_CFFI_OP_NOOP, 74) },
+            _CFFI_OP(_CFFI_OP_NOOP, 76) },
   { "tid", offsetof(struct thread_status, tid),
            sizeof(((struct thread_status *)0)->tid),
            _CFFI_OP(_CFFI_OP_NOOP, 1) },
@@ -2772,99 +2789,101 @@ static const struct _cffi_field_s _cffi_fields[] = {
             _CFFI_OP(_CFFI_OP_NOOP, 65) },
   { "r15", offsetof(struct user_regs_struct, r15),
            sizeof(((struct user_regs_struct *)0)->r15),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r14", offsetof(struct user_regs_struct, r14),
            sizeof(((struct user_regs_struct *)0)->r14),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r13", offsetof(struct user_regs_struct, r13),
            sizeof(((struct user_regs_struct *)0)->r13),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r12", offsetof(struct user_regs_struct, r12),
            sizeof(((struct user_regs_struct *)0)->r12),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rbp", offsetof(struct user_regs_struct, rbp),
            sizeof(((struct user_regs_struct *)0)->rbp),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rbx", offsetof(struct user_regs_struct, rbx),
            sizeof(((struct user_regs_struct *)0)->rbx),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r11", offsetof(struct user_regs_struct, r11),
            sizeof(((struct user_regs_struct *)0)->r11),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r10", offsetof(struct user_regs_struct, r10),
            sizeof(((struct user_regs_struct *)0)->r10),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r9", offsetof(struct user_regs_struct, r9),
           sizeof(((struct user_regs_struct *)0)->r9),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "r8", offsetof(struct user_regs_struct, r8),
           sizeof(((struct user_regs_struct *)0)->r8),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rax", offsetof(struct user_regs_struct, rax),
            sizeof(((struct user_regs_struct *)0)->rax),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rcx", offsetof(struct user_regs_struct, rcx),
            sizeof(((struct user_regs_struct *)0)->rcx),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rdx", offsetof(struct user_regs_struct, rdx),
            sizeof(((struct user_regs_struct *)0)->rdx),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rsi", offsetof(struct user_regs_struct, rsi),
            sizeof(((struct user_regs_struct *)0)->rsi),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rdi", offsetof(struct user_regs_struct, rdi),
            sizeof(((struct user_regs_struct *)0)->rdi),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "orig_rax", offsetof(struct user_regs_struct, orig_rax),
                 sizeof(((struct user_regs_struct *)0)->orig_rax),
-                _CFFI_OP(_CFFI_OP_NOOP, 79) },
+                _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rip", offsetof(struct user_regs_struct, rip),
            sizeof(((struct user_regs_struct *)0)->rip),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "cs", offsetof(struct user_regs_struct, cs),
           sizeof(((struct user_regs_struct *)0)->cs),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "eflags", offsetof(struct user_regs_struct, eflags),
               sizeof(((struct user_regs_struct *)0)->eflags),
-              _CFFI_OP(_CFFI_OP_NOOP, 79) },
+              _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "rsp", offsetof(struct user_regs_struct, rsp),
            sizeof(((struct user_regs_struct *)0)->rsp),
-           _CFFI_OP(_CFFI_OP_NOOP, 79) },
+           _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "ss", offsetof(struct user_regs_struct, ss),
           sizeof(((struct user_regs_struct *)0)->ss),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "fs_base", offsetof(struct user_regs_struct, fs_base),
                sizeof(((struct user_regs_struct *)0)->fs_base),
-               _CFFI_OP(_CFFI_OP_NOOP, 79) },
+               _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "gs_base", offsetof(struct user_regs_struct, gs_base),
                sizeof(((struct user_regs_struct *)0)->gs_base),
-               _CFFI_OP(_CFFI_OP_NOOP, 79) },
+               _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "ds", offsetof(struct user_regs_struct, ds),
           sizeof(((struct user_regs_struct *)0)->ds),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "es", offsetof(struct user_regs_struct, es),
           sizeof(((struct user_regs_struct *)0)->es),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "fs", offsetof(struct user_regs_struct, fs),
           sizeof(((struct user_regs_struct *)0)->fs),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
   { "gs", offsetof(struct user_regs_struct, gs),
           sizeof(((struct user_regs_struct *)0)->gs),
-          _CFFI_OP(_CFFI_OP_NOOP, 79) },
+          _CFFI_OP(_CFFI_OP_NOOP, 81) },
 };
 
 static const struct _cffi_struct_union_s _cffi_struct_unions[] = {
-  { "global_state", 70, _CFFI_F_CHECK_FIELDS,
+  { "count_result", 71, _CFFI_F_OPAQUE,
+    (size_t)-1, -1, -1, 0 /* opaque */ },
+  { "global_state", 72, _CFFI_F_CHECK_FIELDS,
     sizeof(struct global_state), offsetof(struct _cffi_align_struct_global_state, y), 0, 3 },
-  { "ptrace_hit_bp", 71, _CFFI_F_CHECK_FIELDS,
+  { "ptrace_hit_bp", 73, _CFFI_F_CHECK_FIELDS,
     sizeof(struct ptrace_hit_bp), offsetof(struct _cffi_align_struct_ptrace_hit_bp, y), 3, 4 },
-  { "software_breakpoint", 73, _CFFI_F_CHECK_FIELDS,
+  { "software_breakpoint", 75, _CFFI_F_CHECK_FIELDS,
     sizeof(struct software_breakpoint), offsetof(struct _cffi_align_struct_software_breakpoint, y), 7, 5 },
-  { "thread", 75, _CFFI_F_CHECK_FIELDS,
+  { "thread", 77, _CFFI_F_CHECK_FIELDS,
     sizeof(struct thread), offsetof(struct _cffi_align_struct_thread, y), 12, 4 },
-  { "thread_status", 76, _CFFI_F_CHECK_FIELDS,
+  { "thread_status", 78, _CFFI_F_CHECK_FIELDS,
     sizeof(struct thread_status), offsetof(struct _cffi_align_struct_thread_status, y), 16, 3 },
-  { "user_regs_struct", 78, _CFFI_F_CHECK_FIELDS,
+  { "user_regs_struct", 80, _CFFI_F_CHECK_FIELDS,
     sizeof(struct user_regs_struct), offsetof(struct _cffi_align_struct_user_regs_struct, y), 19, 27 },
 };
 
@@ -2876,11 +2895,11 @@ static const struct _cffi_type_context_s _cffi_type_context = {
   NULL,  /* no enums */
   NULL,  /* no typenames */
   27,  /* num_globals */
-  6,  /* num_struct_unions */
+  7,  /* num_struct_unions */
   0,  /* num_enums */
   0,  /* num_typenames */
   NULL,  /* no includes */
-  81,  /* num_types */
+  83,  /* num_types */
   0,  /* flags */
 };
 

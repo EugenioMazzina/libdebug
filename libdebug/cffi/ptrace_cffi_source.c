@@ -49,6 +49,11 @@ struct global_state {
     _Bool handle_syscall_enabled;
 };
 
+struct count_result {
+    int count;
+    int status;
+};
+
 struct user_regs_struct *register_thread(struct global_state *state, int tid)
 {
     // Verify if the thread is already registered
@@ -574,8 +579,10 @@ void free_breakpoints(struct global_state *state)
     state->b_HEAD = NULL;
 }
 
-int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
+struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
 {
+    struct count_result *result;
+    result = malloc(sizeof(struct count_result));
     int status = prepare_for_run(state, tid);
 
     struct thread *stepping_thread = state->t_HEAD;
@@ -589,7 +596,8 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
 
     if (!stepping_thread) {
         perror("Thread not found");
-        return -1;
+        result->status=-1;
+        return result;
     }
 
     uint64_t previous_ip, current_ip;
@@ -602,7 +610,10 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
 
     do{
 
-        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
+        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)){
+            result->status=-1;
+            return result;
+        }
 
         waitpid(tid, &status, 0);
 
@@ -640,7 +651,11 @@ int stepping_cont(struct global_state *state, int tid, uint64_t map_start, uint6
     // update the registers
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
-    return count;
+    result -> count = count;
+    result -> status = status;
+
+
+    return result;
 }
 
 int stepping_finish(struct global_state *state, int tid)

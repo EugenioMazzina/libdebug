@@ -255,6 +255,21 @@ class PtraceInterface(DebuggingInterface):
     def counting_cont(self:PtraceInterface, external : bool) -> int:
         """Fundamentally a copy paste of cont, except cont is not done"""
 
+        # Enable all breakpoints if they were disabled for a single step
+        changed = []
+
+        for bp in self._internal_debugger.breakpoints.values():
+            bp._disabled_for_step = False
+            if bp._changed:
+                changed.append(bp)
+                bp._changed = False
+
+        for bp in changed:
+            if bp.enabled:
+                self.set_breakpoint(bp, insert=False)
+            else:
+                self.unset_breakpoint(bp, delete=False)
+
         if not external:
             mapping = self.maps()[1]
             map_start = mapping.start
@@ -263,19 +278,21 @@ class PtraceInterface(DebuggingInterface):
             map_start=0
             map_end=0
 
-        result = self.lib_trace.stepping_cont(
+        count = self.lib_trace.stepping_cont(
             self._global_state,
             self.process_id,
             map_start,
             map_end
         )
-        if result < 0:
+        result = count
+        if result.status < 0:
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
         
         #the wait has been done internally
         invalidate_process_cache()
-        return result
+        self.status_handler.manage_change([self.process_id, result.status])
+        return result.count
 
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
