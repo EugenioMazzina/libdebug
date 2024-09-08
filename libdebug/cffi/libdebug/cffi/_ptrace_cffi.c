@@ -1241,8 +1241,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
         // because we hit a hardware breakpoint
         // we do the same if we hit a software breakpoint
         if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte)){
-            ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL);
-            waitpid(tid, &status, 0);
             break;
         }
 
