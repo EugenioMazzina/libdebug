@@ -1184,7 +1184,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 {
     struct count_result *result;
     result = malloc(sizeof(struct count_result));
-    int status = prepare_for_run(state, tid);
 
     struct thread *stepping_thread = state->t_HEAD;
     while (stepping_thread != NULL) {
@@ -1208,6 +1207,8 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
     current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
         printf("%" PRIu64 "\n", current_ip);
+
+    int status = prepare_for_run(state, tid);
 
     do{
 

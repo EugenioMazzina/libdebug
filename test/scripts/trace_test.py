@@ -16,14 +16,13 @@ class TraceTest(unittest.TestCase):
         d = self.d
         d.run()
         bp = d.breakpoint(0x40114d)
-        bbp = d.breakpoint(0x40113e)
+        bbp = d.breakpoint(0x401136)
         d.cont()
         d.trace() #@ 4d
-        result = d.trace()
-        self.assertTrue(result == 16)
-        #d.cont()
-        result = d.trace()
-        #self.assertTrue(result == 12)
+        d.cont()
+        self.assertTrue(d._internal_debugger.trace_counter == 13)
+        d.cont()
+        self.assertTrue(d._internal_debugger.trace_counter == 31)
         d.kill()
 
 
