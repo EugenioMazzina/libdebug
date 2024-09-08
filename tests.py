@@ -4,7 +4,7 @@ d=debugger("test/binaries/trace_test")
 d.run()
 a=lambda t,b : print(hex(t.regs.rip))
 bp = d.breakpoint(0x40114d)
-bbbp = d.breakpoint(0x401136)
+bbbp = d.breakpoint(0x40113e)
 print(hex(d.regs.rip))
 d.cont() #hit bp
 print(hex(d.regs.rip)) #4d

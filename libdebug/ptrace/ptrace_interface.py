@@ -291,7 +291,9 @@ class PtraceInterface(DebuggingInterface):
         
         #the wait has been done internally
         invalidate_process_cache()
-        self.status_handler.manage_change([self.process_id, result.status])
+        results=[]
+        results.append([self.process_id, result.status])
+        self.status_handler.manage_change(results)
         return result.count
 
 

@@ -1239,7 +1239,7 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
         // we do the same if we hit a software breakpoint
-        if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte))
+        if (current_ip == previous_ip)
             break;
 
         // We have not hit a breakpoint, hence the counter increased
