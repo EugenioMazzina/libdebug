@@ -1206,7 +1206,10 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
     current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
-        printf("%" PRIu64 "\n", current_ip);
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    first_opcode_byte = opcode_window & 0xFF;
+    printf("%" PRIu64 "   ", current_ip);
+    printf("%" PRIu64 "\n", first_opcode_byte);
 
     int status = prepare_for_run(state, tid);
 
