@@ -74,6 +74,9 @@ class PtraceInterface(DebuggingInterface):
     detached: bool
     """Whether the process was detached or not."""
 
+    code_blocks : dict[int,BasicBlock]
+    """An array containing the basic blocks of the code"""
+
     _internal_debugger: InternalDebugger
     """The internal debugger instance."""
 
@@ -91,6 +94,7 @@ class PtraceInterface(DebuggingInterface):
 
         self.process_id = 0
         self.detached = False
+        self.code_blocks={}
 
         self.hardware_bp_helpers = {}
 
@@ -99,6 +103,7 @@ class PtraceInterface(DebuggingInterface):
     def reset(self: PtraceInterface) -> None:
         """Resets the state of the interface."""
         self.hardware_bp_helpers.clear()
+        self.code_blocks.clear()
         self.lib_trace.free_thread_list(self._global_state)
         self.lib_trace.free_breakpoints(self._global_state)
 
@@ -278,23 +283,116 @@ class PtraceInterface(DebuggingInterface):
             map_start=0
             map_end=0
 
-        count = self.lib_trace.stepping_cont(
-            self._global_state,
-            self.process_id,
-            map_start,
-            map_end
-        )
-        result = count
-        if result.status < 0:
-            errno_val = self.ffi.errno
-            raise OSError(errno_val, errno.errorcode[errno_val])
-        
-        #the wait has been done internally
-        invalidate_process_cache()
-        results=[]
-        results.append([self.process_id, result.status])
-        self.status_handler.manage_change(results)
-        return result.count
+        count=0
+        roadblock=None
+        while(True):
+            block=None
+            added=False
+            bp=None
+            ip=self._internal_debugger.threads[0].instruction_pointer
+            #we determine if we are aligned with a block
+            if ip in self.code_blocks:
+                block=self.code_blocks[ip]
+                requires_steps=False #true if we are perfectly aligned with a code block, so we can use the fast method
+            else:
+                requires_steps=True #whether we are inside of .text (block exists) or not, we do need to use steps
+                for b in self.code_blocks.values():
+                    if ip <= b.end and ip >= b.start:
+                        #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
+                        block=b
+                        break
+
+            #we check if the block we found contains any breakpoint, not needed for external tracing since counting_cont will be defaulted
+            if block:
+                for p in self._internal_debugger.breakpoints.values():
+                    if p.address <= block.end and p.address > ip: #it is correct checking if it's ahead of ip, because if we enter the block past a bp we don't need to account for it
+                        roadblock=p.address #to note is that roadblock will always be the first breakpoint (lowest address one)
+                        if p.address != block.end: #shouldn't enable stepping if the roadblock is precisely at the last instruction of the block, as we can simply cont to it and stop
+                            requires_steps=True
+
+            #now we can set the breakpoints
+            if block:
+                if block.end in self._internal_debugger.breakpoints.values(): #we can't use roadblock in case there are multiple bps in the same block
+                    bp=self.breakpoints[block.end] #we do not want to overwrite the poor innocent user placed bp
+                    if not bp.enabled:
+                        self._enable_breakpoint(bp)
+                else:
+                    if not roadblock: #if roadblock were the last instruction, we would have entered the previous condition guaranteed
+                        # Check if we have enough hardware breakpoints available
+                        # Otherwise we use a software breakpoint
+                        install_hw_bp = self.hardware_bp_helpers[self._internal_debugger.threads[0].thread_id].available_breakpoints() > 0
+
+                        bp = Breakpoint(block.end, hardware=install_hw_bp)
+                        self.set_breakpoint(bp)
+                        added=True
+
+            #now the actual execution
+            if requires_steps:
+                if roadblock: #if we have a roadblock, we can step_until to it, since it is less finicky than counting_cont
+                    result = self.lib_trace.step_until(
+                        self._global_state,
+                        self.process_id,
+                        roadblock,
+                        -1
+                    )
+                    if result == -1:
+                            errno_val = self.ffi.errno
+                            raise OSError(errno_val, errno.errorcode[errno_val])
+                    #the wait has been done internally
+                    invalidate_process_cache()
+                    count+=result
+                    if added:
+                        self.unset_breakpoint(bp)
+                    return count
+                elif block:
+                    #there is no bp ahead, but we require stepping, so if a block exists that means we are in the midst of a known block and stepping until the end is easy enough
+
+                    result = self.lib_trace.step_until(
+                        self._global_state,
+                        self.process_id,
+                        bp.address,
+                        -1
+                    )
+                    if result == -1:
+                        errno_val = self.ffi.errno
+                        raise OSError(errno_val, errno.errorcode[errno_val])
+                    invalidate_process_cache()
+                    count+=result
+                    if added:
+                        self.unset_breakpoint(bp)
+                    self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
+                    self.wait()
+                    count+=1
+                else:
+                    #there is no bp ahead and the code is not in a known block, so it's necessary to run the emergency mode aka stepping_cont
+
+                    res = self.lib_trace.stepping_cont(
+                        self._global_state,
+                        self.process_id,
+                        map_start,
+                        map_end
+                    )
+                    result = res
+                    if result.status < 0:
+                        errno_val = self.ffi.errno
+                        raise OSError(errno_val, errno.errorcode[errno_val])
+                    
+                    #the wait has been done internally
+                    invalidate_process_cache()
+                    results=[]
+                    results.append([self.process_id, result.status])
+                    self.status_handler.manage_change(results)
+                    count+=result.count
+                    return count
+            else:
+                self.cont()
+                self.wait()
+                count+=block.count
+                self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
+                self.wait()
+                count+=1
+                if added:
+                    self.unset_breakpoint(bp)
 
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
@@ -725,6 +823,10 @@ class PtraceInterface(DebuggingInterface):
     def scan(self:PtraceInterface) -> None:
         closers=['jae','ja','jbe','jb','jcxz','jecxz','je','jge','jg','jle','jl','jne','jno','jnp','jns','jo','jp','jrcxz',
                  'jmp','js','call','ret','loop','loope','loopne','hlt']
+        jumps=['jae','ja','jbe','jb','jcxz','jecxz','je','jge','jg','jle','jl','jne','jno','jnp','jns','jo','jp','jrcxz',
+               'jmp','js']
+        labels=[]
+        active_labels={}
         block_start=None
         block_count=0
         raw=self.mem()
@@ -732,20 +834,33 @@ class PtraceInterface(DebuggingInterface):
         md=Cs(CS_ARCH_X86, CS_MODE_64)
         for i in md.disasm(raw, text_start):
             if i.mnemonic not in closers:
-                if block_start:
-                    block_count+=1
-                    #add here the part for the instruction type tracing
-                else:
-                    if not i.mnemonic == 'nop':
-                        block_start=i.address
-                        block_count=1
+
+                for l in list(active_labels):
+                    active_labels[l] = active_labels.get(l,0) + 1
+
+                for l in labels:
+                    if i.address == l:
+                        active_labels[l]=1
+                        labels.remove(l)
+
+                if len(active_labels)==0 and i.mnemonic!='nop': #this only happens after we flush the active labels after reaching a closer instruction
+                    active_labels[i.address]=1
+
             else:
-                if block_start:
-                    block=BasicBlock(block_start, i.address, block_count)
-                    self._internal_debugger.code_blocks[block.start]=block
-                    block_count=0
-                    block_start=None
+
+                try:
+                    if i.mnemonic in jumps and int(i.op_str,0) not in labels: #every jump creates a new label, which might not necessarily be right after the end of a block
+                        labels.append(int(i.op_str,0)) #we can think of it as a way to parallelize block creation
+                except:
+                    pass
+
+                if len(active_labels)>0:
+                    for l in active_labels.keys():
+                        block=BasicBlock(l, i.address, active_labels[l])
+                        self.code_blocks[l]=block
+                    
+                    active_labels.clear() #we shipped every block, we have no more active labels
                 else:
                     #this means the new block only contains the jump instruction
                     block=BasicBlock(i.address, i.address, 0)
-                    self._internal_debugger.code_blocks[block.start]=block
+                    self.code_blocks[block.start]=block

@@ -84,8 +84,7 @@ class PtraceStatusHandler:
 
         bp = None
 
-        #I'm sorry, I will try to think up something different
-        if ip in enabled_breakpoints and enabled_breakpoints[ip].hardware:
+        if ip in enabled_breakpoints:
             # Hardware breakpoint hit
             liblog.debugger("Hardware breakpoint hit at 0x%x", ip)
             bp = self.internal_debugger.breakpoints[ip]

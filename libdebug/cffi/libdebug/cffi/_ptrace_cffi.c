@@ -902,7 +902,10 @@ int step_until(struct global_state *state, int tid, uint64_t addr, int max_steps
         // update the registers
         ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
-        if (INSTRUCTION_POINTER(stepping_thread->regs) == addr) break;
+        if (INSTRUCTION_POINTER(stepping_thread->regs) == addr){
+            count++;
+            break;
+        } 
 
         // if the instruction pointer didn't change, we have to step again
         // because we hit a hardware breakpoint

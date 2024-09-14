@@ -16,18 +16,18 @@ class TraceTest(unittest.TestCase):
         d = self.d
         d.run()
         bp = d.breakpoint(0x40114d)
-        bbp = d.breakpoint(0x40114a)
+        bbp = d.breakpoint(0x40114a, hardware=True)
         d.cont()
         d.trace() #@ 4d
         d.cont()
-        self.assertTrue(d._internal_debugger.trace_counter == 21)
+        self.assertTrue(d._internal_debugger.trace_counter == 22)
         d.cont()
-        self.assertTrue(d._internal_debugger.trace_counter == 38)
+        self.assertTrue(d._internal_debugger.trace_counter == 41)
         index=0
         while index <9:
             d.cont()
             index+=1
-        self.assertTrue(d._internal_debugger.trace_counter == 203)
+        self.assertTrue(d._internal_debugger.trace_counter == 221)
         d.kill()
 
 
