@@ -296,12 +296,14 @@ class PtraceInterface(DebuggingInterface):
                 requires_steps=False #true if we are perfectly aligned with a code block, so we can use the fast method
             else:
                 requires_steps=True #whether we are inside of .text (block exists) or not, we do need to use steps
-                for b in self.code_blocks.values():
-                    if ip <= b.end and ip >= b.start:
-                        #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
-                        block=b
-                        break
+                if not external and ip >= map_start and ip <= map_end: #this is to make sure we don't go into stepping cont if a label points to a nope after a jump
+                    for b in self.code_blocks.values():
+                        if ip <= b.end:
+                            #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
+                            block=b
+                            break
 
+                
             #we check if the block we found contains any breakpoint, not needed for external tracing since counting_cont will be defaulted
             if block:
                 for p in self._internal_debugger.breakpoints.values():

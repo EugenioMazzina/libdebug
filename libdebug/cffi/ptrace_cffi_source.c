@@ -606,12 +606,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
     int64_t opcode_window, first_opcode_byte;
     int count=0;
 
-    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
-    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
-    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
-    first_opcode_byte = opcode_window & 0xFF;
-    printf("%" PRIu64 "   ", current_ip);
-    printf("%" PRIu64 "\n", first_opcode_byte);
 
     int status = prepare_for_run(state, tid);
 
@@ -634,12 +628,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
         // Get value at current instruction pointer
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
-
-        if((map_end != map_start) && current_ip < map_end && current_ip > map_start){
-            printf("%" PRIu64 "    ", current_ip);
-            printf("%" PRIu64 "    ",first_opcode_byte);
-            printf("%s \n", IS_SW_BREAKPOINT(first_opcode_byte) ? "true" : "false");
-        }
 
 
         // if the instruction pointer didn't change, we return
@@ -707,11 +695,6 @@ int stepping_finish(struct global_state *state, int tid)
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
 
-        if(current_ip < 4198834 && current_ip > 4198479){
-            printf("%" PRIu64 "    ", current_ip);
-            printf("%" PRIu64 "    ",first_opcode_byte);
-            printf("%s \n", IS_SW_BREAKPOINT(first_opcode_byte) ? "true" : "false");
-        }
 
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint

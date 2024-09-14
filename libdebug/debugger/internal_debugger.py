@@ -346,9 +346,6 @@ class InternalDebugger:
         self.trace_counter+=1 #we executed the jump
         #time to find the next block
 
-    def test(self: InternalDebugger) -> None:
-        self.debugging_interface.test()
-
     def trace(self: InternalDebugger, external: bool=False) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
@@ -1257,7 +1254,6 @@ class InternalDebugger:
         if(self.trace_on):
                 increase=self.debugging_interface.counting_cont(external=self.external_tracing)
                 self.set_stopped()
-                print("increase is ",increase)
                 self.trace_counter+=increase
         else:
             self.set_running()

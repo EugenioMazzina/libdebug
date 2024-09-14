@@ -91,9 +91,6 @@ class Debugger:
 
     def mem(self: Debugger) -> object:
         return self._internal_debugger.mem()
-    
-    def test(self: Debugger) -> None:
-        self._internal_debugger.test()
 
     def maps(self: Debugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
