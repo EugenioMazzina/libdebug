@@ -362,6 +362,8 @@ class PtraceInterface(DebuggingInterface):
                     count+=result
                     if added:
                         self.unset_breakpoint(bp)
+                    else:
+                        return count
                     self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
                     self.wait()
                     count+=1
@@ -395,6 +397,8 @@ class PtraceInterface(DebuggingInterface):
                 count+=1
                 if added:
                     self.unset_breakpoint(bp)
+                else:
+                    return count
 
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
