@@ -89,9 +89,6 @@ class Debugger:
         """Waits for the process to stop."""
         self._internal_debugger.wait()
 
-    def mem(self: Debugger) -> object:
-        return self._internal_debugger.mem()
-
     def maps(self: Debugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
         return self._internal_debugger.maps()

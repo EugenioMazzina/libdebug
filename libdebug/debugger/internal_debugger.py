@@ -26,7 +26,6 @@ from libdebug.data.breakpoint import Breakpoint
 from libdebug.data.memory_view import MemoryView
 from libdebug.data.signal_catcher import SignalCatcher
 from libdebug.data.syscall_handler import SyscallHandler
-from libdebug.data.basic_block import BasicBlock
 from libdebug.debugger.internal_debugger_instance_manager import (
     extend_internal_debugger,
     link_to_internal_debugger,
@@ -397,10 +396,6 @@ class InternalDebugger:
         """Returns the memory maps of the process."""
         self._ensure_process_stopped()
         return self.debugging_interface.maps()
-    
-    def mem(self: InternalDebugger) -> object:
-        self._ensure_process_stopped()
-        return self.debugging_interface.mem()
 
     def print_maps(self: InternalDebugger) -> None:
         """Prints the memory maps of the process."""

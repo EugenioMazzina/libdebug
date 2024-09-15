@@ -817,7 +817,7 @@ class PtraceInterface(DebuggingInterface):
         """Returns the memory maps of the process."""
         return get_process_maps(self.process_id)
     
-    def mem(self:PtraceInterface) -> object:
+    def get_p_mem(self:PtraceInterface) -> object:
         map = self.maps()[1]
         text = self._internal_debugger.resolve_symbol("_start", "hybrid")
         return get_process_mem(self.process_id, map.end, text)
@@ -829,16 +829,14 @@ class PtraceInterface(DebuggingInterface):
                'jmp','js']
         labels=[]
         active_labels={}
-        block_start=None
-        block_count=0
-        raw=self.mem()
+        raw=self.get_p_mem()
         text_start=self._internal_debugger.resolve_symbol("_start", "hybrid")
         md=Cs(CS_ARCH_X86, CS_MODE_64)
-        for i in md.disasm(raw, text_start):
+        for i in md.disasm(raw,text_start):
             if i.mnemonic not in closers:
 
-                for l in list(active_labels):
-                    active_labels[l] = active_labels.get(l,0) + 1
+                for al in list(active_labels):
+                    active_labels[al] = active_labels.get(al,0) + 1
 
                 for l in labels:
                     if i.address == l:
@@ -851,7 +849,7 @@ class PtraceInterface(DebuggingInterface):
             else:
 
                 try:
-                    if i.mnemonic in jumps and int(i.op_str,0) not in labels: #every jump creates a new label, which might not necessarily be right after the end of a block
+                    if i.mnemonic in jumps and int(i.op_str,0) not in labels and int(i.op_str,0) not in self.code_blocks: #every jump creates a new label, which might not necessarily be right after the end of a block
                         labels.append(int(i.op_str,0)) #we can think of it as a way to parallelize block creation
                 except:
                     pass
@@ -866,3 +864,14 @@ class PtraceInterface(DebuggingInterface):
                     #this means the new block only contains the jump instruction
                     block=BasicBlock(i.address, i.address, 0)
                     self.code_blocks[block.start]=block
+                    if i.address in labels:
+                        labels.remove(i.address)
+        for leftover in labels:
+            count=0
+            for i in md.disasm(raw[leftover-text_start:],leftover):
+                if i.mnemonic not in closers:
+                    count+=1
+                else:
+                    block=BasicBlock(leftover,i.address,count)
+                    self.code_blocks[leftover]=block
+                    break
