@@ -392,6 +392,11 @@ class InternalDebugger:
 
         self._join_and_check_status()
 
+    def test(self:InternalDebugger) -> None:
+            increase=self.debugging_interface.test()
+            self.set_stopped()
+            self.trace_counter+=increase
+
     def maps(self: InternalDebugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
         self._ensure_process_stopped()
