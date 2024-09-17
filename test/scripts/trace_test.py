@@ -36,7 +36,7 @@ class TraceTest(unittest.TestCase):
                 self.assertTrue(d._internal_debugger.trace_counter == 193)
             d.cont()
             index+=1
-        self.assertEqual(d._internal_debugger.trace_counter, 223)
+        self.assertTrue(d._internal_debugger.trace_counter == 223)
         d.kill()
 
 

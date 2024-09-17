@@ -1207,8 +1207,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
     int64_t opcode_window, first_opcode_byte;
     int count=0;
 
-
-    int status = prepare_for_run(state, tid);
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
     current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
@@ -1216,7 +1214,20 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
     // Get value at current instruction pointer
     opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
     first_opcode_byte = opcode_window & 0xFF;
-    printf("%" PRId64 "   %" PRId64 "\n",current_ip,opcode_window);
+    printf("before prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+
+
+    int status = prepare_for_run(state, tid);
+
+
+    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
+    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+
+    // Get value at current instruction pointer
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    first_opcode_byte = opcode_window & 0xFF;
+    printf("after prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
 
 
     do{

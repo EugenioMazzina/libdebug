@@ -387,11 +387,13 @@ class PtraceInterface(DebuggingInterface):
                     results.append([self.process_id, result.status])
                     self.status_handler.manage_change(results)
                     count+=result.count
+                    print("increase is ",result.count)
                     return count
             else:
                 self.cont()
                 self.wait()
                 count+=block.count
+
                 self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
                 self.wait()
                 count+=1
