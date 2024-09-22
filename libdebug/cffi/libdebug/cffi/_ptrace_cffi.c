@@ -1280,8 +1280,6 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 
 int stepping_finish(struct global_state *state, int tid)
 {
-    int status = prepare_for_run(state, tid);
-
     struct thread *stepping_thread = state->t_HEAD;
     while (stepping_thread != NULL) {
         if (stepping_thread->tid == tid) {
@@ -1298,6 +1296,29 @@ int stepping_finish(struct global_state *state, int tid)
 
     uint64_t previous_ip, current_ip;
     uint64_t opcode_window, first_opcode_byte;
+
+    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
+    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+
+    // Get value at current instruction pointer
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    first_opcode_byte = opcode_window & 0xFF;
+    printf("finish before prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+
+
+    int status = prepare_for_run(state, tid);
+
+
+    ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
+    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+
+    // Get value at current instruction pointer
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    first_opcode_byte = opcode_window & 0xFF;
+    printf("finish after prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+
 
     // We need to keep track of the nested calls
     int nested_call_counter = 1;
@@ -1318,6 +1339,10 @@ int stepping_finish(struct global_state *state, int tid)
         // Get value at current instruction pointer
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
+
+        if(current_ip<4198834 && current_ip>4198480){
+            printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, IS_SW_BREAKPOINT(first_opcode_byte) );
+        }
 
 
         // if the instruction pointer didn't change, we return
