@@ -1275,7 +1275,14 @@ class InternalDebugger:
                 liblog.debugger("All threads dead")
                 break
             self.resume_context.resume = True
+            previous_ip=self.threads[0].instruction_pointer
             self.debugging_interface.wait()
+            if self.trace_on and self.trace_counter<0:
+                #this only happens if we did a step beforehand and put the counter under 0 manually
+                current_ip = self.threads[0].instruction_pointer
+                if previous_ip == current_ip:
+                    self.trace_counter+=1
+                self.trace_counter = -self.trace_counter
             if self.resume_context.resume:
                 self.debugging_interface.cont()
             else:
@@ -1304,7 +1311,9 @@ class InternalDebugger:
         liblog.debugger("Stepping thread %s.", thread.thread_id)
         self.debugging_interface.step(thread)
         self.set_running()
-        self.trace_counter+=1
+        if self.trace_on:
+            #since the wait is always done asynchronously with the step, you cannot access stuff from one method to the other, so I have to do this porcata. It's safe because I don't see how trace can be negative 
+            self.trace_counter = -self.trace_counter-1
 
     def __threaded_step_until(
         self: InternalDebugger,
