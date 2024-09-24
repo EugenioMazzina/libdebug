@@ -286,126 +286,146 @@ class PtraceInterface(DebuggingInterface):
         count=0
         roadblock=None
 
+        res = self.lib_trace.stepping_cont(
+            self._global_state,
+            self.process_id,
+            map_start,
+            map_end
+        )
+        result = res
+        if result.status < 0:
+            errno_val = self.ffi.errno
+            raise OSError(errno_val, errno.errorcode[errno_val])
+    
+        #the wait has been done internally
+        invalidate_process_cache()
+        results=[]
+        results.append([self.process_id, result.status])
+        self.status_handler.manage_change(results)
+        count+=result.count
+        print("increase is ",result.count)
+        return count
 
-        while(True):
-            block=None
-            added=False
-            bp=None
-            ip=self._internal_debugger.threads[0].instruction_pointer
-            #we determine if we are aligned with a block
-            if ip in self.code_blocks:
-                block=self.code_blocks[ip]
-                requires_steps=False #true if we are perfectly aligned with a code block, so we can use the fast method
-            else:
-                requires_steps=True #whether we are inside of .text (block exists) or not, we do need to use steps
-                if not external and ip >= map_start and ip <= map_end: #this is to make sure we don't go into stepping cont if a label points to a nope after a jump
-                    for b in self.code_blocks.values():
-                        if ip <= b.end:
-                            #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
-                            block=b
-                            break
+
+        # while(True):
+        #     block=None
+        #     added=False
+        #     bp=None
+        #     ip=self._internal_debugger.threads[0].instruction_pointer
+        #     #we determine if we are aligned with a block
+        #     if ip in self.code_blocks:
+        #         block=self.code_blocks[ip]
+        #         requires_steps=False #true if we are perfectly aligned with a code block, so we can use the fast method
+        #     else:
+        #         requires_steps=True #whether we are inside of .text (block exists) or not, we do need to use steps
+        #         if not external and ip >= map_start and ip <= map_end: #this is to make sure we don't go into stepping cont if a label points to a nope after a jump
+        #             for b in self.code_blocks.values():
+        #                 if ip <= b.end:
+        #                     #we found a block that contains the instruction pointed by the ip, the first block found is fine, as it's only a performance matter and not a correctness one
+        #                     block=b
+        #                     break
 
                 
-            #we check if the block we found contains any breakpoint, not needed for external tracing since counting_cont will be defaulted
-            if block:
-                for p in self._internal_debugger.breakpoints.values():
-                    if p.address <= block.end and p.address > ip: #it is correct checking if it's ahead of ip, because if we enter the block past a bp we don't need to account for it
-                        roadblock=p.address #to note is that roadblock will always be the first breakpoint (lowest address one)
-                        if p.address != block.end: #shouldn't enable stepping if the roadblock is precisely at the last instruction of the block, as we can simply cont to it and stop
-                            requires_steps=True
+        #     #we check if the block we found contains any breakpoint, not needed for external tracing since counting_cont will be defaulted
+        #     if block:
+        #         for p in self._internal_debugger.breakpoints.values():
+        #             if p.address <= block.end and p.address > ip: #it is correct checking if it's ahead of ip, because if we enter the block past a bp we don't need to account for it
+        #                 roadblock=p.address #to note is that roadblock will always be the first breakpoint (lowest address one)
+        #                 if p.address != block.end: #shouldn't enable stepping if the roadblock is precisely at the last instruction of the block, as we can simply cont to it and stop
+        #                     requires_steps=True
 
-            #now we can set the breakpoints
-            if block:
-                if block.end in self._internal_debugger.breakpoints.values(): #we can't use roadblock in case there are multiple bps in the same block
-                    bp=self.breakpoints[block.end] #we do not want to overwrite the poor innocent user placed bp
-                    if not bp.enabled:
-                        self._enable_breakpoint(bp)
-                else:
-                    if not roadblock: #if roadblock were the last instruction, we would have entered the previous condition guaranteed
-                        # Check if we have enough hardware breakpoints available
-                        # Otherwise we use a software breakpoint
-                        install_hw_bp = self.hardware_bp_helpers[self._internal_debugger.threads[0].thread_id].available_breakpoints() > 0
+        #     #now we can set the breakpoints
+        #     if block:
+        #         if block.end in self._internal_debugger.breakpoints.values(): #we can't use roadblock in case there are multiple bps in the same block
+        #             bp=self.breakpoints[block.end] #we do not want to overwrite the poor innocent user placed bp
+        #             if not bp.enabled:
+        #                 self._enable_breakpoint(bp)
+        #         else:
+        #             if not roadblock: #if roadblock were the last instruction, we would have entered the previous condition guaranteed
+        #                 # Check if we have enough hardware breakpoints available
+        #                 # Otherwise we use a software breakpoint
+        #                 install_hw_bp = self.hardware_bp_helpers[self._internal_debugger.threads[0].thread_id].available_breakpoints() > 0
 
-                        bp = Breakpoint(block.end, hardware=install_hw_bp)
-                        self.set_breakpoint(bp)
-                        added=True
+        #                 bp = Breakpoint(block.end, hardware=install_hw_bp)
+        #                 self.set_breakpoint(bp)
+        #                 added=True
 
-            #now the actual execution
-            if requires_steps:
-                if roadblock: #if we have a roadblock, we can step_until to it, since it is less finicky than counting_cont
-                    result = self.lib_trace.step_until(
-                        self._global_state,
-                        self.process_id,
-                        roadblock,
-                        -1
-                    )
-                    if result == -1:
-                            errno_val = self.ffi.errno
-                            raise OSError(errno_val, errno.errorcode[errno_val])
-                    #the wait has been done internally
-                    invalidate_process_cache()
-                    count+=result
-                    if added:
-                        self.unset_breakpoint(bp)
-                    return count
-                elif block:
-                    #there is no bp ahead, but we require stepping, so if a block exists that means we are in the midst of a known block and stepping until the end is easy enough
+        #     #now the actual execution
+        #     if requires_steps:
+        #         if roadblock: #if we have a roadblock, we can step_until to it, since it is less finicky than counting_cont
+        #             result = self.lib_trace.step_until(
+        #                 self._global_state,
+        #                 self.process_id,
+        #                 roadblock,
+        #                 -1
+        #             )
+        #             if result == -1:
+        #                     errno_val = self.ffi.errno
+        #                     raise OSError(errno_val, errno.errorcode[errno_val])
+        #             #the wait has been done internally
+        #             invalidate_process_cache()
+        #             count+=result
+        #             if added:
+        #                 self.unset_breakpoint(bp)
+        #             return count
+        #         elif block:
+        #             #there is no bp ahead, but we require stepping, so if a block exists that means we are in the midst of a known block and stepping until the end is easy enough
 
-                    result = self.lib_trace.step_until(
-                        self._global_state,
-                        self.process_id,
-                        bp.address,
-                        -1
-                    )
-                    if result == -1:
-                        errno_val = self.ffi.errno
-                        raise OSError(errno_val, errno.errorcode[errno_val])
-                    invalidate_process_cache()
-                    count+=result
-                    if added:
-                        self.unset_breakpoint(bp)
-                    else:
-                        return count
-                    self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
-                    self.wait()
-                    count+=1
-                else:
-                    #there is no bp ahead and the code is not in a known block, so it's necessary to run the emergency mode aka stepping_cont
+        #             result = self.lib_trace.step_until(
+        #                 self._global_state,
+        #                 self.process_id,
+        #                 bp.address,
+        #                 -1
+        #             )
+        #             if result == -1:
+        #                 errno_val = self.ffi.errno
+        #                 raise OSError(errno_val, errno.errorcode[errno_val])
+        #             invalidate_process_cache()
+        #             count+=result
+        #             if added:
+        #                 self.unset_breakpoint(bp)
+        #             else:
+        #                 return count
+        #             self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
+        #             self.wait()
+        #             count+=1
+        #         else:
+        #             #there is no bp ahead and the code is not in a known block, so it's necessary to run the emergency mode aka stepping_cont
 
-                    res = self.lib_trace.stepping_cont(
-                        self._global_state,
-                        self.process_id,
-                        map_start,
-                        map_end
-                    )
-                    result = res
-                    if result.status < 0:
-                        errno_val = self.ffi.errno
-                        raise OSError(errno_val, errno.errorcode[errno_val])
+        #             res = self.lib_trace.stepping_cont(
+        #                 self._global_state,
+        #                 self.process_id,
+        #                 map_start,
+        #                 map_end
+        #             )
+        #             result = res
+        #             if result.status < 0:
+        #                 errno_val = self.ffi.errno
+        #                 raise OSError(errno_val, errno.errorcode[errno_val])
                    
-                    #the wait has been done internally
-                    invalidate_process_cache()
-                    results=[]
-                    results.append([self.process_id, result.status])
-                    self.status_handler.manage_change(results)
-                    count+=result.count
-                    print("increase is ",result.count)
-                    return count
-            else:
-                self.cont()
-                self.wait()
-                count+=block.count
+        #             #the wait has been done internally
+        #             invalidate_process_cache()
+        #             results=[]
+        #             results.append([self.process_id, result.status])
+        #             self.status_handler.manage_change(results)
+        #             count+=result.count
+        #             print("increase is ",result.count)
+        #             return count
+        #     else:
+        #         self.cont()
+        #         self.wait()
+        #         count+=block.count
 
-                self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
-                self.wait()
-                count+=1
-                if added:
-                    self.unset_breakpoint(bp)
-                else:
-                    return count
-                if self._internal_debugger.threads[0].instruction_pointer in self._internal_debugger.breakpoints:
-                    #the instruction we landed on has a breakpoint set by the user we give the control back to them
-                    return count
+        #         self.step(self._internal_debugger.threads[0]) #we need to step into the jump to reach the next block
+        #         self.wait()
+        #         count+=1
+        #         if added:
+        #             self.unset_breakpoint(bp)
+        #         else:
+        #             return count
+        #         if self._internal_debugger.threads[0].instruction_pointer in self._internal_debugger.breakpoints:
+        #             #the instruction we landed on has a breakpoint set by the user we give the control back to them
+        #             return count
                 
     def test(self: PtraceInterface) -> int:
         mapping = self.maps()[1]
@@ -482,18 +502,36 @@ class PtraceInterface(DebuggingInterface):
             thread (ThreadContext): The thread to step.
             heuristic (str): The heuristic to use.
         """
+
+        if self._internal_debugger.trace_on:
+            mapping = self.maps()[1]
+            map_start = mapping.start
+            map_end = mapping.end
+        else:
+            map_start=0
+            map_end=0
+        
+
         if heuristic == "step-mode":
-            result = self.lib_trace.stepping_finish(
+            res = self.lib_trace.stepping_finish(
                 self._global_state,
                 thread.thread_id,
+                map_start,
+                map_end
             )
 
-            if result == -1:
+            result=res
+
+            if result.status == -1:
                 errno_val = self.ffi.errno
                 raise OSError(errno_val, errno.errorcode[errno_val])
 
             # As the wait is done internally, we must invalidate the cache
             invalidate_process_cache()
+
+            if map_end != map_start: #equivalent to asking if trace_on is enabled
+                self._internal_debugger.trace_counter+=result.count
+
         elif heuristic == "backtrace":
             # Breakpoint to return address
             last_saved_instruction_pointer = thread.current_return_address()

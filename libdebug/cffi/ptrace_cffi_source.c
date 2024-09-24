@@ -608,12 +608,12 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
-    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+    previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
     // Get value at current instruction pointer
-    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)previous_ip, NULL);
     first_opcode_byte = opcode_window & 0xFF;
-    printf("before prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+    printf("before prepare %" PRId64 "   %" PRId64 "\n",previous_ip,first_opcode_byte);
 
 
     int status = prepare_for_run(state, tid);
@@ -627,6 +627,11 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
     opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
     first_opcode_byte = opcode_window & 0xFF;
     printf("after prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+
+    if(previous_ip != current_ip){
+        //this means we stepped during the preparation, we still need to count it
+        count++;
+    }
 
 
     do{
@@ -653,32 +658,45 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
             printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, IS_SW_BREAKPOINT(first_opcode_byte) );
         }
 
+        // We have not hit a breakpoint, hence the counter increased
+        //we still update in case we hit a sw bp
+        //we only increase in case we are inside the mapped code region if external is on (marked by ap_end and map_start being identical)
+        if((map_end != map_start) && current_ip < map_end && current_ip > map_start && current_ip != previous_ip){
+            count++;
+        }
+
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
         // we do the same if we hit a software breakpoint
         if (current_ip == previous_ip || IS_SW_BREAKPOINT(first_opcode_byte)){
             break;
         }
-
-        // We have not hit a breakpoint, hence the counter increased
-        //we only increase in case we are inside the mapped code region if external is on (marked by ap_end and map_start being identical)
-        if((map_end != map_start) && current_ip < map_end && current_ip > map_start){
-            count++;
-        }
     } while(count>-1);
 
     // update the registers
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
+
+    // remove any installed breakpoint
+    struct software_breakpoint *b = state->b_HEAD;
+    while (b != NULL) {
+        if (b->enabled) {
+            ptrace(PTRACE_POKEDATA, tid, (void *)b->addr, b->instruction);
+        }
+        b = b->next;
+    }
+
     result -> count = count;
     result -> status = status;
-
-
     return result;
 }
 
-int stepping_finish(struct global_state *state, int tid)
+struct count_result *stepping_finish(struct global_state *state, int tid, uint64_t map_start, uint64_t map_end)
 {
+
+    struct count_result *result;
+    result = malloc(sizeof(struct count_result));
+
     struct thread *stepping_thread = state->t_HEAD;
     while (stepping_thread != NULL) {
         if (stepping_thread->tid == tid) {
@@ -690,20 +708,22 @@ int stepping_finish(struct global_state *state, int tid)
 
     if (!stepping_thread) {
         perror("Thread not found");
-        return -1;
+        result -> status = -1;
+        return result;
     }
 
     uint64_t previous_ip, current_ip;
     uint64_t opcode_window, first_opcode_byte;
+    int count=0;
 
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
 
-    current_ip = INSTRUCTION_POINTER(stepping_thread->regs);
+    previous_ip = INSTRUCTION_POINTER(stepping_thread->regs);
 
     // Get value at current instruction pointer
-    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
+    opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)previous_ip, NULL);
     first_opcode_byte = opcode_window & 0xFF;
-    printf("finish before prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
+    printf("finish before prepare %" PRId64 "   %" PRId64 "\n",previous_ip,first_opcode_byte);
 
 
     int status = prepare_for_run(state, tid);
@@ -718,12 +738,19 @@ int stepping_finish(struct global_state *state, int tid)
     first_opcode_byte = opcode_window & 0xFF;
     printf("finish after prepare %" PRId64 "   %" PRId64 "\n",current_ip,first_opcode_byte);
 
+    if(previous_ip != current_ip){
+        //this means we stepped during the preparation, we still need to count it
+        count++;
+    }
 
     // We need to keep track of the nested calls
     int nested_call_counter = 1;
 
     do {
-        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
+        if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)){
+            result->status=-1;
+            return result;
+        } 
 
         // wait for the child
         waitpid(tid, &status, 0);
@@ -743,6 +770,12 @@ int stepping_finish(struct global_state *state, int tid)
             printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, IS_SW_BREAKPOINT(first_opcode_byte) );
         }
 
+        // We have not hit a breakpoint, hence the counter increased
+        //we still update in case we hit a sw bp
+        //we only increase in case we are inside the mapped code region if external is on (marked by ap_end and map_start being identical)
+        if((map_end != map_start) && current_ip < map_end && current_ip > map_start && current_ip != previous_ip){
+            count++;
+        }
 
         // if the instruction pointer didn't change, we return
         // because we hit a hardware breakpoint
@@ -759,13 +792,22 @@ int stepping_finish(struct global_state *state, int tid)
     } while (nested_call_counter > 0);
 
     // We are in a return instruction, do the last step
-    if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)) return -1;
+    if (ptrace(PTRACE_SINGLESTEP, tid, NULL, NULL)){
+        result -> status=-1;
+        return result;
+    }
 
     // wait for the child
     waitpid(tid, &status, 0);
 
+    previous_ip = INSTRUCTION_POINTER(stepping_thread -> regs);
+
     // update the registers
     ptrace(PTRACE_GETREGS, tid, NULL, &stepping_thread->regs);
+
+    current_ip = INSTRUCTION_POINTER(stepping_thread -> regs);
+    
+    if(previous_ip != current_ip) count++;
 
 cleanup:
     // remove any installed breakpoint
@@ -777,5 +819,7 @@ cleanup:
         b = b->next;
     }
 
-    return status;
+    result -> count = count;
+    result -> status = status;
+    return result;
 }
