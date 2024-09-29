@@ -89,9 +89,6 @@ class Debugger:
         """Waits for the process to stop."""
         self._internal_debugger.wait()
 
-    def test(self: Debugger) -> None:
-        self._internal_debugger.test()
-
     def maps(self: Debugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
         return self._internal_debugger.maps()

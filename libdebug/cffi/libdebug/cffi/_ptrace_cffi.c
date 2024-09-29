@@ -1231,6 +1231,7 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 
     if(previous_ip != current_ip){
         //this means we stepped during the preparation, we still need to count it
+        printf("stepped during prep");
         count++;
     }
 
@@ -1256,7 +1257,7 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
         first_opcode_byte = opcode_window & 0xFF;
 
         if(current_ip<map_end && current_ip>map_start){
-            printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, IS_SW_BREAKPOINT(first_opcode_byte) );
+            printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, count);
         }
 
         // We have not hit a breakpoint, hence the counter increased

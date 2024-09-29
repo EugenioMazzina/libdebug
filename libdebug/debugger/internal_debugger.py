@@ -339,12 +339,6 @@ class InternalDebugger:
         if not self.trace_on:
             self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
-    def striding_cont(self: InternalDebugger,count : int) -> None:
-        self.trace_counter+=count
-        self._background_step(self.threads[0])
-        self.trace_counter+=1 #we executed the jump
-        #time to find the next block
-
     def trace(self: InternalDebugger, external: bool=False) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
@@ -391,11 +385,6 @@ class InternalDebugger:
         self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
         self._join_and_check_status()
-
-    def test(self:InternalDebugger) -> None:
-            increase=self.debugging_interface.test()
-            self.set_stopped()
-            self.trace_counter+=increase
 
     def maps(self: InternalDebugger) -> list[MemoryMap]:
         """Returns the memory maps of the process."""
