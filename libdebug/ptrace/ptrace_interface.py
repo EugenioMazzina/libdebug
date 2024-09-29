@@ -286,25 +286,6 @@ class PtraceInterface(DebuggingInterface):
         count=0
         roadblock=None
 
-        res = self.lib_trace.stepping_cont(
-            self._global_state,
-            self.process_id,
-            map_start,
-            map_end
-        )
-        result = res
-        if result.status < 0:
-            errno_val = self.ffi.errno
-            raise OSError(errno_val, errno.errorcode[errno_val])
-    
-        #the wait has been done internally
-        invalidate_process_cache()
-        results=[]
-        results.append([self.process_id, result.status])
-        self.status_handler.manage_change(results)
-        count+=result.count
-        print("increase is ", count)
-        return count
 
 
         while(True):

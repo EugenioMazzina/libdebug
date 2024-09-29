@@ -630,8 +630,8 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
 
     if(previous_ip != current_ip){
         //this means we stepped during the preparation, we still need to count it
-        printf("stepped during prep");
         count++;
+        printf("stepped during prep  %d\n", count);
     }
 
 
@@ -655,15 +655,15 @@ struct count_result *stepping_cont(struct global_state *state, int tid, uint64_t
         opcode_window = ptrace(PTRACE_PEEKDATA, tid, (void *)current_ip, NULL);
         first_opcode_byte = opcode_window & 0xFF;
 
-        if(current_ip<map_end && current_ip>map_start){
-            printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, count);
-        }
-
         // We have not hit a breakpoint, hence the counter increased
         //we still update in case we hit a sw bp
         //we only increase in case we are inside the mapped code region if external is on (marked by ap_end and map_start being identical)
         if((map_end != map_start) && current_ip < map_end && current_ip > map_start && current_ip != previous_ip){
             count++;
+        }
+
+        if(current_ip<map_end && current_ip>map_start){
+            printf("%" PRId64 "   %" PRId64 "   %d\n",current_ip, first_opcode_byte, count);
         }
 
         // if the instruction pointer didn't change, we return
