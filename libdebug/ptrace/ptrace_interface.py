@@ -287,7 +287,6 @@ class PtraceInterface(DebuggingInterface):
         roadblock=None
 
 
-
         while(True):
             block=None
             added=False
@@ -390,7 +389,6 @@ class PtraceInterface(DebuggingInterface):
                     results.append([self.process_id, result.status])
                     self.status_handler.manage_change(results)
                     count+=result.count
-                    print("increase is ",result.count)
                     return count
             else:
                 self.cont()
