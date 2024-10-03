@@ -74,12 +74,19 @@ class Debugger:
         """Continues the process."""
         self._internal_debugger.cont()
 
-    def trace(self:Debugger, external:bool=False) -> None:
+    def trace(self:Debugger, external:bool=False, heuristic:bool=True) -> None:
         """Enables the tracing of instructions executed.
         This slows the execution.
         External can be set to communicate that the tracing of external functions should be performed
+        heuristic = false is step-mode, while heuristic = true is striding cont
         """
-        self._internal_debugger.trace(external=external)
+        self._internal_debugger.trace(external=external, heuristic=heuristic)
+
+    def stop_trace(self: Debugger) -> None:
+        self._internal_debugger.stop_trace()
+
+    def print_trace(self:Debugger) -> None:
+        self._internal_debugger.print_trace()
 
     def interrupt(self: Debugger) -> None:
         """Interrupts the process."""

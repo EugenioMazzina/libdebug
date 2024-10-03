@@ -152,6 +152,9 @@ class InternalDebugger:
     """Keeps track of the number of instructions executed while the program was being traced"""
     #This can be moved somewhere else, I didn't know where to properly put this information
 
+    trace_heuristic: bool
+    """This keeps track fo which heuristic the user chose for trace, it's probably better than overloading cont"""
+
     external_tracing : bool
     """True if tracing of instructions from external libraries should be performed"""
 
@@ -181,6 +184,7 @@ class InternalDebugger:
         self.__polling_thread_response_queue = Queue()
         self.trace_counter=0
         self.external_tracing=False
+        self.trace_heuristic=True
 
     def clear(self: InternalDebugger) -> None:
         """Reinitializes the context, so it is ready for a new run."""
@@ -201,6 +205,7 @@ class InternalDebugger:
         self.resume_context.clear()
         self.trace_counter=0
         self.external_tracing=False
+        self.trace_heuristic=True
 
     def start_up(self: InternalDebugger) -> None:
         """Starts up the context."""
@@ -339,17 +344,26 @@ class InternalDebugger:
         if not self.trace_on:
             self.__polling_thread_command_queue.put((self.__threaded_wait, ()))
 
-    def trace(self: InternalDebugger, external: bool=False) -> None:
+    def trace(self: InternalDebugger, external: bool=False, heuristic:bool=True) -> None:
         """Enables the tracing of instructions executed or returns the counter"""
         #can be easily changed to a version that toggles trace on and off if desired, I wanted to reuse the method to avoid command bloat
-        self._ensure_process_stopped()
-        if(self.trace_on):
-            print(self.trace_counter," instructions have been executed since tracing was enabled")
-        else:
+        if not self.trace_on:
+            self._ensure_process_stopped()
             self.trace_on = True
             if external:
                 self.external_tracing = True
+            if not heuristic:
+                self.trace_heuristic=False
             self.debugging_interface.scan()
+            liblog.debugger("tracing the number of instructions executed")
+        
+    def stop_trace(self: InternalDebugger) -> None:
+        if self.trace_on:
+            self.trace_on = False
+            liblog.debugger("stopped tracing the number of instructions executed")
+
+    def print_trace(self: InternalDebugger) -> None:
+        print(self.trace_counter, " instructions have been executed while trace was active")
 
     @background_alias(_background_invalid_call)
     def interrupt(self: InternalDebugger) -> None:
@@ -1241,7 +1255,7 @@ class InternalDebugger:
             liblog.debugger("Continuing process %d.", self.process_id)
 
         if(self.trace_on):
-                increase=self.debugging_interface.counting_cont(external=self.external_tracing)
+                increase=self.debugging_interface.counting_cont(external=self.external_tracing, heuristic=self.trace_heuristic)
                 self.set_stopped()
                 self.trace_counter+=increase
         else:

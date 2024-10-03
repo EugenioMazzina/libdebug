@@ -257,7 +257,7 @@ class PtraceInterface(DebuggingInterface):
             errno_val = self.ffi.errno
             raise OSError(errno_val, errno.errorcode[errno_val])
         
-    def counting_cont(self:PtraceInterface, external : bool) -> int:
+    def counting_cont(self:PtraceInterface, external : bool, heuristic: bool) -> int:
         """Fundamentally a copy paste of cont, except cont is not done"""
 
         # Enable all breakpoints if they were disabled for a single step
@@ -285,6 +285,27 @@ class PtraceInterface(DebuggingInterface):
 
         count=0
         roadblock=None
+
+        if not heuristic:
+            res = self.lib_trace.stepping_cont(
+                self._global_state,
+                self.process_id,
+                map_start,
+                map_end
+            )
+            result = res
+            if result.status < 0:
+                errno_val = self.ffi.errno
+                raise OSError(errno_val, errno.errorcode[errno_val])
+            
+            #the wait has been done internally
+            invalidate_process_cache()
+            results=[]
+            results.append([self.process_id, result.status])
+            self.status_handler.manage_change(results)
+            count+=result.count
+            return count
+
 
 
         while(True):
@@ -372,6 +393,8 @@ class PtraceInterface(DebuggingInterface):
                 else:
                     #there is no bp ahead and the code is not in a known block, so it's necessary to run the emergency mode aka stepping_cont
 
+                    liblog.debugger("failed to locate a code block for the current instruction pointer, falling back to step-mode")
+
                     res = self.lib_trace.stepping_cont(
                         self._global_state,
                         self.process_id,
@@ -406,28 +429,6 @@ class PtraceInterface(DebuggingInterface):
                     #the instruction we landed on has a breakpoint set by the user we give the control back to them
                     return count
                 
-    def test(self: PtraceInterface) -> int:
-        mapping = self.maps()[1]
-        map_start = mapping.start
-        map_end = mapping.end
-        res = self.lib_trace.stepping_cont(
-            self._global_state,
-            self.process_id,
-            map_start,
-            map_end
-        )
-        result = res
-        if result.status < 0:
-            errno_val = self.ffi.errno
-            raise OSError(errno_val, errno.errorcode[errno_val])
-        
-        #the wait has been done internally
-        invalidate_process_cache()
-        results=[]
-        results.append([self.process_id, result.status])
-        self.status_handler.manage_change(results)
-        count+=result.count
-        return count
 
 
     def step(self: PtraceInterface, thread: ThreadContext) -> None:
@@ -512,6 +513,9 @@ class PtraceInterface(DebuggingInterface):
                 self._internal_debugger.trace_counter+=result.count
 
         elif heuristic == "backtrace":
+            if self._internal_debugger.trace_on:
+                liblog.debugger("warning: this heuristic is not compatible with tracing, the instructions executed won't be considered")
+
             # Breakpoint to return address
             last_saved_instruction_pointer = thread.current_return_address()
 
